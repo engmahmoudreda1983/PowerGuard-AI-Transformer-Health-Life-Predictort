@@ -31,37 +31,35 @@ except FileNotFoundError:
     models_loaded = False
 
 if models_loaded:
-    # Screen Layout
-    col_input, col_output = st.columns([1, 1.2])
+    # Screen Layout: Making Input smaller (1) and Output wider (2)
+    col_input, col_output = st.columns([1, 2])
 
     with col_input:
-        st.markdown("### 📊 Transformer Parameters (Inputs)")
-        st.markdown("Enter the chemical and physical test results of the oil:")
+        st.markdown("### 📊 Parameters (Inputs)")
+        st.markdown("Enter test results:")
         
         with st.form("input_form"):
-            col1, col2 = st.columns(2)
-            
-            # Key Gases
-            with col1:
-                st.markdown("**1. Dissolved Gases (DGA - ppm):**")
-                hydrogen = st.number_input("Hydrogen (H2)", value=100.0, step=10.0)
-                oxigen = st.number_input("Oxygen (O2)", value=5000.0, step=100.0)
-                nitrogen = st.number_input("Nitrogen (N2)", value=40000.0, step=1000.0)
-                methane = st.number_input("Methane (CH4)", value=50.0, step=5.0)
-                co = st.number_input("Carbon Monoxide (CO)", value=200.0, step=10.0)
-                co2 = st.number_input("Carbon Dioxide (CO2)", value=1500.0, step=50.0)
-                ethylene = st.number_input("Ethylene (C2H4)", value=10.0, step=2.0)
-                ethane = st.number_input("Ethane (C2H6)", value=20.0, step=5.0)
-                acethylene = st.number_input("Acetylene (C2H2)", value=0.0, step=1.0)
+            # Dissolved Gases
+            st.markdown("**1. Dissolved Gases (DGA - ppm):**")
+            hydrogen = st.number_input("Hydrogen (H2)", value=100.0, step=10.0, help="Indicates partial discharge or low-energy electrical faults.")
+            oxigen = st.number_input("Oxygen (O2)", value=5000.0, step=100.0, help="Indicates atmospheric leaks or oil oxidation.")
+            nitrogen = st.number_input("Nitrogen (N2)", value=40000.0, step=1000.0, help="Used as a blanket gas; changes may indicate leaks.")
+            methane = st.number_input("Methane (CH4)", value=50.0, step=5.0, help="Indicates low-temperature thermal faults.")
+            co = st.number_input("Carbon Monoxide (CO)", value=200.0, step=10.0, help="Indicates cellulose (paper) insulation degradation.")
+            co2 = st.number_input("Carbon Dioxide (CO2)", value=1500.0, step=50.0, help="Normal aging, but rapid increase indicates severe paper degradation.")
+            ethylene = st.number_input("Ethylene (C2H4)", value=10.0, step=2.0, help="Indicates high-temperature thermal faults (>700°C).")
+            ethane = st.number_input("Ethane (C2H6)", value=20.0, step=5.0, help="Indicates medium-temperature thermal faults.")
+            acethylene = st.number_input("Acetylene (C2H2)", value=0.0, step=1.0, help="CRITICAL: Indicates high-energy arcing or sparking.")
 
+            st.markdown("---")
+            
             # Physical Properties
-            with col2:
-                st.markdown("**2. Oil Physical Properties:**")
-                dbds = st.number_input("DBDS (ppm)", value=10.0, step=1.0)
-                power_factor = st.number_input("Power Factor (%)", value=1.5, step=0.1)
-                interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=40.0, step=1.0)
-                dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=50.0, step=1.0)
-                water_content = st.number_input("Water Content (ppm)", value=15.0, step=1.0)
+            st.markdown("**2. Oil Physical Properties:**")
+            dbds = st.number_input("DBDS (ppm)", value=10.0, step=1.0, help="Dibenzyl Disulfide: Corrosive sulfur indicator. High levels can destroy transformers.")
+            power_factor = st.number_input("Power Factor (%)", value=1.5, step=0.1, help="Dielectric dissipation factor. Higher means contaminated or aged oil.")
+            interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=40.0, step=1.0, help="Higher is better. Low values indicate presence of sludge or water.")
+            dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=50.0, step=1.0, help="Breakdown Voltage. Higher is better (insulation strength).")
+            water_content = st.number_input("Water Content (ppm)", value=15.0, step=1.0, help="Moisture level. High water content drastically reduces transformer life.")
             
             submitted = st.form_submit_button("🔍 Run AI Analysis", use_container_width=True)
 
@@ -99,53 +97,58 @@ if models_loaded:
             kpi3.metric(label="Life Expectancy", value=f"{life_expectation_pred:.1f} Years")
             st.markdown("---")
 
-            # --- 2. Health Index Gauge ---
-            fig_health = go.Figure(go.Indicator(
-                mode = "gauge",
-                value = health_index_pred,
-                domain = {'x': [0, 1], 'y': [0, 1]},
-                gauge = {
-                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
-                    'bar': {'color': "white", 'thickness': 0.1},
-                    'bgcolor': "rgba(0,0,0,0)",
-                    'borderwidth': 2,
-                    'bordercolor': "gray",
-                    'steps': [
-                        {'range': [0, 40], 'color': "#ff3333"},
-                        {'range': [40, 70], 'color': "#ffcc00"},
-                        {'range': [70, 100], 'color': "#00cc66"}
-                    ],
-                    'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': health_index_pred}
-                }
-            ))
-            
-            fig_health.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, height=200, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig_health, use_container_width=True)
+            col_gauge, col_bar = st.columns([1, 1])
 
-            # --- 3. Explicit Text Under Gauge ---
-            st.markdown(f"<h3 style='text-align: center; margin-bottom: 0px;'>Health Index: {health_index_pred:.2f}</h3>", unsafe_allow_html=True)
-            st.markdown(f"<h1 style='text-align: center; color: {color}; margin-top: 0px; font-weight: bold;'>{status_text}</h1>", unsafe_allow_html=True)
-            st.info(f"**Recommendation:** {rec}")
+            with col_gauge:
+                # --- 2. Health Index Gauge ---
+                fig_health = go.Figure(go.Indicator(
+                    mode = "gauge",
+                    value = health_index_pred,
+                    domain = {'x': [0, 1], 'y': [0, 1]},
+                    gauge = {
+                        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                        'bar': {'color': "white", 'thickness': 0.1},
+                        'bgcolor': "rgba(0,0,0,0)",
+                        'borderwidth': 2,
+                        'bordercolor': "gray",
+                        'steps': [
+                            {'range': [0, 40], 'color': "#ff3333"},
+                            {'range': [40, 70], 'color': "#ffcc00"},
+                            {'range': [70, 100], 'color': "#00cc66"}
+                        ],
+                        'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': health_index_pred}
+                    }
+                ))
+                
+                fig_health.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, height=250, margin=dict(l=20, r=20, t=20, b=20))
+                st.plotly_chart(fig_health, use_container_width=True)
+
+                # --- 3. Explicit Text Under Gauge ---
+                st.markdown(f"<h3 style='text-align: center; margin-bottom: 0px;'>Health Index: {health_index_pred:.2f}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top: 0px; font-weight: bold;'>{status_text}</h2>", unsafe_allow_html=True)
+                
+            with col_bar:
+                # --- 4. Feature Importance Bar Chart ---
+                st.markdown("<div style='text-align: center; font-weight: bold;'>Variables Impact on Transformer Health</div>", unsafe_allow_html=True)
+                
+                importances = model_health.feature_importances_ * 100
+                df_imp = pd.DataFrame({'Feature': input_data.columns, 'Impact (%)': importances})
+                
+                # Taking top 7 features for a cleaner look
+                df_imp = df_imp.sort_values(by='Impact (%)', ascending=True).tail(7)
+
+                fig_bar = px.bar(df_imp, x='Impact (%)', y='Feature', orientation='h',
+                                 text='Impact (%)', color='Impact (%)', color_continuous_scale='Blues')
+                
+                fig_bar.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                fig_bar.update_layout(height=300, margin=dict(l=0, r=20, t=10, b=0), 
+                                      plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", 
+                                      font={'color': 'white'}, coloraxis_showscale=False)
+                
+                st.plotly_chart(fig_bar, use_container_width=True)
+
             st.markdown("---")
-
-            # --- 4. Feature Importance Bar Chart ---
-            st.markdown("#### 📊 Variables Impact on Transformer Health")
-            
-            # Extract feature importances from the model
-            importances = model_health.feature_importances_ * 100
-            df_imp = pd.DataFrame({'Feature': input_data.columns, 'Impact (%)': importances})
-            df_imp = df_imp.sort_values(by='Impact (%)', ascending=True)
-
-            # Create Plotly Bar Chart
-            fig_bar = px.bar(df_imp, x='Impact (%)', y='Feature', orientation='h',
-                             text='Impact (%)', color='Impact (%)', color_continuous_scale='Blues')
-            
-            fig_bar.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-            fig_bar.update_layout(height=400, margin=dict(l=0, r=20, t=30, b=20), 
-                                  plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", 
-                                  font={'color': 'white'})
-            
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.info(f"**Actionable Recommendation:** {rec}")
 
         else:
-            st.info("👈 Enter the readings in the table and click 'Run AI Analysis'.")
+            st.info("👈 Enter the readings in the left panel and click 'Run AI Analysis'.")
