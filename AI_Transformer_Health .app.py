@@ -5,10 +5,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 import joblib
 
-# إعدادات الصفحة
+# Page Configuration
 st.set_page_config(page_title="PowerGuard AI", page_icon="⚡", layout="wide")
 
-# تصميم الهيدر باللغة الإنجليزية كما طلبت
+# Header Design
 st.markdown("""
 <div style='background-color: #0b2e59; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
     <h1 style='color: #ffffff; text-align: center; margin: 0;'>AI Predictive Maintenance ⚡</h1>
@@ -16,19 +16,21 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# تحميل النماذج
+# Load Models
 @st.cache_resource
 def load_models():
     try:
         model_health = joblib.load('rf_health_model.pkl')
         model_life = joblib.load('rf_life_model.pkl')
-        return model_health, model_life
-    except:
-        return None, None
+        model_thermal = joblib.load('rf_thermal_model.pkl') # الموديل الجديد
+        return model_health, model_life, model_thermal
+    except Exception as e:
+        st.error(f"⚠️ Model Error: {e}")
+        return None, None, None
 
-model_health, model_life = load_models()
+model_health, model_life, model_thermal = load_models()
 
-# منطق تشخيص مثلث دوفال
+# Duval Triangle Diagnosis Logic
 def get_duval_diagnosis(ch4, c2h4, c2h2):
     total = ch4 + c2h4 + c2h2
     if total == 0: return "Normal (No significant fault gases)"
@@ -41,100 +43,151 @@ def get_duval_diagnosis(ch4, c2h4, c2h2):
     if p_c2h2 > 13 or (p_c2h2 > 4 and p_c2h4 >= 50): return "D2 (High Energy Discharge)"
     return "DT (Mixed Faults)"
 
-if model_health is not None:
-    tab1, tab2 = st.tabs(["✍️ Manual Entry (Single Test)", "📁 Batch Analysis (Upload File)"])
+if model_health is not None and model_thermal is not None:
+    # تقسيم الداش بورد لـ 3 تبويبات
+    tab1, tab2, tab3 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA (Thermal)", "📁 Batch Analysis"])
 
-    # --- TAB 1: MANUAL ENTRY ---
+    # --- TAB 1: DGA & OIL QUALITY (الموديل الأول) ---
     with tab1:
-        col_input, col_output = st.columns([1, 2])
+        col_input, col_output = st.columns([1, 2.2])
         with col_input:
-            st.markdown("### 📊 Parameters (Inputs)")
+            st.markdown("### 📊 DGA Parameters")
             with st.form("input_form"):
                 st.markdown("**1. Dissolved Gases (ppm):**")
-                h2 = st.number_input("Hydrogen (H2)", value=10.0, help="Partial discharge indicator.")
-                o2 = st.number_input("Oxygen (O2)", value=500.0, help="Leakage indicator.")
+                h2 = st.number_input("Hydrogen (H2)", value=10.0)
+                o2 = st.number_input("Oxygen (O2)", value=500.0)
                 n2 = st.number_input("Nitrogen (N2)", value=10000.0)
-                ch4 = st.number_input("Methane (CH4)", value=5.0, help="Low-temp thermal fault.")
-                co = st.number_input("Carbon Monoxide (CO)", value=100.0, help="Paper degradation.")
+                ch4 = st.number_input("Methane (CH4)", value=10.0)
+                co = st.number_input("Carbon Monoxide (CO)", value=100.0)
                 co2 = st.number_input("Carbon Dioxide (CO2)", value=500.0)
-                c2h4 = st.number_input("Ethylene (C2H4)", value=1.0, help="High-temp thermal fault.")
-                c2h6 = st.number_input("Ethane (C2H6)", value=2.0)
-                c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, help="CRITICAL: Arcing indicator.")
+                c2h4 = st.number_input("Ethylene (C2H4)", value=2.0)
+                c2h6 = st.number_input("Ethane (C2H6)", value=5.0)
+                c2h2 = st.number_input("Acetylene (C2H2)", value=0.0)
                 
                 st.markdown("**2. Physical Properties:**")
-                dbds = st.number_input("DBDS (ppm)", value=0.1, help="Corrosive sulfur.")
-                pf = st.number_input("Power Factor (%)", value=0.05, help="Dielectric loss.")
-                ift = st.number_input("Interfacial Tension (mN/m)", value=48.0, help="Oil purity.")
-                dr = st.number_input("Dielectric Rigidity (kV)", value=65.0, help="Insulation strength.")
-                wc = st.number_input("Water Content (ppm)", value=1.0, help="Moisture level.")
+                dbds = st.number_input("DBDS (ppm)", value=0.1)
+                pf = st.number_input("Power Factor (%)", value=0.1)
+                ift = st.number_input("Interfacial Tension (mN/m)", value=45.0)
+                dr = st.number_input("Dielectric Rigidity (kV)", value=60.0)
+                wc = st.number_input("Water Content (ppm)", value=2.0)
                 
-                submitted = st.form_submit_button("🔍 Run AI Analysis", use_container_width=True)
+                submitted = st.form_submit_button("🔍 Analyze Oil Health", use_container_width=True)
 
         with col_output:
             if submitted:
-                # Prediction
-                data = pd.DataFrame([[h2, o2, n2, ch4, co, co2, c2h4, c2h6, c2h2, dbds, pf, ift, dr, wc]], 
-                                    columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
+                input_df = pd.DataFrame([[h2, o2, n2, ch4, co, co2, c2h4, c2h6, c2h2, dbds, pf, ift, dr, wc]], 
+                                        columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 
-                h_score = model_health.predict(data)[0]
-                l_yrs = model_life.predict(data)[0]
+                h_score = model_health.predict(input_df)[0]
+                l_yrs = model_life.predict(input_df)[0]
                 diagnosis = get_duval_diagnosis(ch4, c2h4, c2h2)
 
                 if h_score >= 70: status, color = "SAFE", "#00cc66"
                 elif h_score >= 40: status, color = "WARNING", "#ffcc00"
                 else: status, color = "RISKY", "#ff3333"
 
-                # 1. Key Metrics
-                st.markdown("### 📈 AI Analysis Results")
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Health Score", f"{h_score:.2f}")
                 m2.metric("Status", status)
                 m3.metric("Life Expectancy", f"{l_yrs:.1f} Yrs")
 
-                # 2. Gauge & Duval
                 col_g, col_d = st.columns([1, 1.2])
                 with col_g:
                     fig_g = go.Figure(go.Indicator(
                         mode="gauge+number", value=h_score,
-                        gauge={'axis': {'range': [100, 0]}, 'bar': {'color': "white"},
+                        gauge={'axis': {'range': [100, 0], 'tickwidth': 1},
+                               'bar': {'color': "white", 'thickness': 0.15},
                                'steps': [{'range': [70, 100], 'color': "#00cc66"},
                                          {'range': [40, 70], 'color': "#ffcc00"},
                                          {'range': [0, 40], 'color': "#ff3333"}]}))
-                    fig_g.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+                    fig_g.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                     st.plotly_chart(fig_g, use_container_width=True)
-                    st.markdown(f"<h2 style='text-align: center; color: {color};'>{status}</h2>", unsafe_allow_html=True)
+                    st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top:-30px;'>{status}</h2>", unsafe_allow_html=True)
 
                 with col_d:
-                    fig_tri = px.scatter_ternary(pd.DataFrame({'CH4':[ch4], 'C2H4':[c2h4], 'C2H2':[c2h2]}), a="CH4", b="C2H4", c="C2H2")
-                    fig_tri.update_traces(marker=dict(size=12, color='red', symbol='cross'))
-                    fig_tri.update_layout(title="Duval Triangle Analysis", height=300, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+                    df_tri = pd.DataFrame({'CH4':[ch4], 'C2H4':[c2h4], 'C2H2':[c2h2]})
+                    fig_tri = px.scatter_ternary(df_tri, a="CH4", b="C2H4", c="C2H2")
+                    fig_tri.update_traces(marker=dict(size=14, color='red', symbol='cross', line=dict(width=2, color='white')))
+                    fig_tri.update_layout(title="Duval Triangle Diagnostic", height=320, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                     st.plotly_chart(fig_tri, use_container_width=True)
                     st.info(f"**Diagnosis:** {diagnosis}")
 
-                st.markdown("---")
-                
-                # 3. Dynamic Bar Chart (Gases Composition)
-                st.markdown("#### 📊 Current Sample Gases Composition (%)")
-                g_vals = [h2, ch4, c2h4, c2h6, c2h2, co, co2]
-                g_names = ['H2', 'CH4', 'C2H4', 'C2H6', 'C2H2', 'CO', 'CO2']
-                if sum(g_vals) > 0:
-                    df_bar = pd.DataFrame({'Gas': g_names, 'Value (%)': [(v/sum(g_vals))*100 for v in g_vals]}).sort_values('Value (%)')
-                    fig_b = px.bar(df_bar, x='Value (%)', y='Gas', orientation='h', text='Value (%)', color='Value (%)', color_continuous_scale='Blues')
-                    fig_b.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-                    fig_b.update_layout(height=350, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font={'color': 'white'}, coloraxis_showscale=False)
-                    st.plotly_chart(fig_b, use_container_width=True)
-
-    # --- TAB 2: BATCH ANALYSIS ---
+    # --- TAB 2: SCADA & THERMAL (الموديل الثاني الجديد) ---
     with tab2:
-        st.markdown("### 📁 Batch Processing")
-        up = st.file_uploader("Upload CSV/Excel", type=['csv', 'xlsx'])
+        st.markdown("### 🌡️ Thermal Load Predictive Analysis (Virtual Sensor)")
+        st.info("Predicts Transformer Top Oil Temperature (OT) based on active/reactive loads and time.")
+        
+        col_t_in, col_t_out = st.columns([1, 1.5])
+        with col_t_in:
+            with st.form("thermal_form"):
+                st.markdown("**1. Time Features:**")
+                c1, c2 = st.columns(2)
+                hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14, help="Peak hours increase temp.")
+                month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7, help="Summer months increase temp.")
+                
+                st.markdown("**2. High Voltage Load:**")
+                hufl = st.number_input("HUFL (Active Load kW)", value=12.5)
+                hull = st.number_input("HULL (Reactive Load kVAR)", value=3.2)
+                
+                st.markdown("**3. Medium Voltage Load:**")
+                mufl = st.number_input("MUFL (Active Load kW)", value=8.1)
+                mull = st.number_input("MULL (Reactive Load kVAR)", value=1.5)
+                
+                st.markdown("**4. Low Voltage Load:**")
+                lufl = st.number_input("LUFL (Active Load kW)", value=4.5)
+                lull = st.number_input("LULL (Reactive Load kVAR)", value=0.8)
+                
+                sub_thermal = st.form_submit_button("🌡️ Predict Oil Temp", use_container_width=True)
+                
+        with col_t_out:
+            if sub_thermal:
+                t_input = pd.DataFrame([[hufl, hull, mufl, mull, lufl, lull, hour, month]], 
+                                       columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
+                
+                pred_ot = model_thermal.predict(t_input)[0]
+                
+                # Logic for thermal health (Virtual Sensor limits)
+                if pred_ot < 50: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
+                elif pred_ot < 70: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Monitor cooling fans."
+                else: t_status, t_color, msg = "CRITICAL", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
+                
+                st.markdown("### 📈 Real-Time AI Thermal Prediction")
+                tm1, tm2 = st.columns(2)
+                tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
+                tm2.metric("Thermal Status", t_status)
+                
+                # Thermometer gauge
+                fig_t = go.Figure(go.Indicator(
+                    mode = "gauge+number",
+                    value = pred_ot,
+                    title = {'text': "Oil Temp °C"},
+                    gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                             'bar': {'color': t_color},
+                             'steps': [
+                                 {'range': [0, 50], 'color': "rgba(0, 204, 102, 0.4)"},
+                                 {'range': [50, 70], 'color': "rgba(255, 204, 0, 0.4)"},
+                                 {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                             'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
+                
+                fig_t.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+                st.plotly_chart(fig_t, use_container_width=True)
+                st.info(f"💡 **AI Recommendation:** {msg}")
+
+    # --- TAB 3: BATCH ANALYSIS ---
+    with tab3:
+        st.markdown("### 📁 Batch Historical Analysis")
+        st.write("Upload CSV for DGA Health analysis")
+        up = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx'])
         if up:
-            df = pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
-            req = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
-            df['Predicted_Health'] = model_health.predict(df[req])
-            st.markdown("#### Health Trend")
-            st.line_chart(df['Predicted_Health'])
-            st.dataframe(df)
-            st.download_button("📥 Download Results", df.to_csv(index=False), "results.csv", "text/csv")
+            df_b = pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
+            req_cols = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
+            
+            if all(c in df_b.columns for c in req_cols):
+                df_b['Predicted_Health'] = model_health.predict(df_b[req_cols])
+                fig_l = px.line(df_b, y='Predicted_Health', markers=True, title="Transformer Health over Samples")
+                st.plotly_chart(fig_l, use_container_width=True)
+            else:
+                st.error("File missing required DGA columns.")
+
 else:
-    st.error("Please ensure model files (.pkl) are present in the directory.")
+    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
