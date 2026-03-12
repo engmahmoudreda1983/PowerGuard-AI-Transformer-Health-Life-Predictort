@@ -53,21 +53,21 @@ if model_health is not None and model_thermal is not None:
             st.markdown("### 📊 DGA Parameters")
             with st.form("input_form"):
                 st.markdown("**1. Dissolved Gases (ppm):**")
-                h2 = st.number_input("Hydrogen (H2)", value=10.0)
+                h2 = st.number_input("Hydrogen (H2)", value=5.0)
                 o2 = st.number_input("Oxygen (O2)", value=500.0)
                 n2 = st.number_input("Nitrogen (N2)", value=10000.0)
-                ch4 = st.number_input("Methane (CH4)", value=10.0)
+                ch4 = st.number_input("Methane (CH4)", value=2.0)
                 co = st.number_input("Carbon Monoxide (CO)", value=100.0)
-                co2 = st.number_input("Carbon Dioxide (CO2)", value=500.0)
-                c2h4 = st.number_input("Ethylene (C2H4)", value=2.0)
+                co2 = st.number_input("Carbon Dioxide (CO2)", value=300.0)
+                c2h4 = st.number_input("Ethylene (C2H4)", value=1.0)
                 c2h6 = st.number_input("Ethane (C2H6)", value=5.0)
                 c2h2 = st.number_input("Acetylene (C2H2)", value=0.0)
                 
                 st.markdown("**2. Physical Properties:**")
                 dbds = st.number_input("DBDS (ppm)", value=0.1)
-                pf = st.number_input("Power Factor (%)", value=0.1)
+                pf = st.number_input("Power Factor (%)", value=0.05)
                 ift = st.number_input("Interfacial Tension (mN/m)", value=45.0)
-                dr = st.number_input("Dielectric Rigidity (kV)", value=60.0)
+                dr = st.number_input("Dielectric Rigidity (kV)", value=70.0)
                 wc = st.number_input("Water Content (ppm)", value=2.0)
                 
                 submitted = st.form_submit_button("🔍 Analyze Oil Health", use_container_width=True)
@@ -81,12 +81,13 @@ if model_health is not None and model_thermal is not None:
                 l_yrs = model_life.predict(input_df)[0]
                 diagnosis = get_duval_diagnosis(ch4, c2h4, c2h2)
 
-                if h_score >= 70: status, color = "SAFE", "#00cc66"
-                elif h_score >= 40: status, color = "WARNING", "#ffcc00"
+                # التعديل: الموديل بيطلع أرقام قليلة للصحة الجيدة وأرقام عالية للمتهالك
+                if h_score <= 30: status, color = "SAFE", "#00cc66"
+                elif h_score <= 45: status, color = "WARNING", "#ffcc00"
                 else: status, color = "RISKY", "#ff3333"
 
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Health Score", f"{h_score:.2f}")
+                m1.metric("Degradation Index", f"{h_score:.2f}")
                 m2.metric("Status", status)
                 m3.metric("Life Expectancy", f"{l_yrs:.1f} Yrs")
 
@@ -94,11 +95,11 @@ if model_health is not None and model_thermal is not None:
                 with col_g:
                     fig_g = go.Figure(go.Indicator(
                         mode="gauge+number", value=h_score,
-                        gauge={'axis': {'range': [100, 0], 'tickwidth': 1},
+                        gauge={'axis': {'range': [0, 60], 'tickwidth': 1},
                                'bar': {'color': "white", 'thickness': 0.15},
-                               'steps': [{'range': [70, 100], 'color': "#00cc66"},
-                                         {'range': [40, 70], 'color': "#ffcc00"},
-                                         {'range': [0, 40], 'color': "#ff3333"}]}))
+                               'steps': [{'range': [0, 30], 'color': "#00cc66"},
+                                         {'range': [30, 45], 'color': "#ffcc00"},
+                                         {'range': [45, 60], 'color': "#ff3333"}]}))
                     fig_g.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                     st.plotly_chart(fig_g, use_container_width=True)
                     st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top:-30px;'>{status}</h2>", unsafe_allow_html=True)
@@ -171,7 +172,6 @@ if model_health is not None and model_thermal is not None:
     # --- TAB 3: BATCH ANALYSIS ---
     with tab3:
         st.markdown("### 📁 Batch Historical Analysis")
-        st.write("Upload a CSV/Excel file to process multiple samples at once.")
         analysis_type = st.radio("Select Analysis Type:", ["🧪 DGA & Oil Quality (Health Index)", "🌡️ SCADA & Thermal (Oil Temp)"])
         up = st.file_uploader("Upload File", type=['csv', 'xlsx'])
         if up:
@@ -193,7 +193,7 @@ if model_health is not None and model_thermal is not None:
                 else:
                     st.error(f"⚠️ Missing required columns.")
 
-    # --- TAB 4: EXECUTIVE REPORT (التقرير الشامل والمعدل) ---
+    # --- TAB 4: EXECUTIVE REPORT (التقرير الشامل المصحح) ---
     with tab4:
         st.markdown("### 📑 Overall Transformer Risk Assessment (AHI)")
         st.info("Combined DGA and SCADA metrics for complete Asset Management Risk Logs.")
@@ -204,27 +204,27 @@ if model_health is not None and model_thermal is not None:
             with st.form("executive_form"):
                 st.markdown("**1. Key Fault Gases (ppm):**")
                 c_g1, c_g2 = st.columns(2)
-                e_h2 = c_g1.number_input("Hydrogen (H2)", value=10.0)
-                e_ch4 = c_g2.number_input("Methane (CH4)", value=10.0)
-                e_c2h4 = c_g1.number_input("Ethylene (C2H4)", value=2.0)
+                e_h2 = c_g1.number_input("Hydrogen (H2)", value=5.0)
+                e_ch4 = c_g2.number_input("Methane (CH4)", value=2.0)
+                e_c2h4 = c_g1.number_input("Ethylene (C2H4)", value=1.0)
                 e_c2h2 = c_g2.number_input("Acetylene (C2H2)", value=0.0)
                 
                 st.markdown("**2. Paper Degradation Gases (ppm):**")
                 c_p1, c_p2 = st.columns(2)
                 e_co = c_p1.number_input("Carbon Monoxide (CO)", value=100.0)
-                e_co2 = c_p2.number_input("Carbon Dioxide (CO2)", value=500.0)
+                e_co2 = c_p2.number_input("Carbon Dioxide (CO2)", value=300.0)
                 
                 st.markdown("**3. Physical Properties (CRITICAL):**")
                 c_ph1, c_ph2 = st.columns(2)
-                e_dr = c_ph1.number_input("Dielectric Rigidity (kV)", value=60.0)
+                e_dr = c_ph1.number_input("Dielectric Rigidity (kV)", value=70.0)
                 e_wc = c_ph2.number_input("Water Content (ppm)", value=2.0)
-                e_pf = st.number_input("Power Factor (%)", value=0.1)
+                e_pf = st.number_input("Power Factor (%)", value=0.05)
                 
                 st.markdown("**4. Operating & Ambient Conditions:**")
                 c_o1, c_o2 = st.columns(2)
-                e_hufl = c_o1.number_input("HUFL (Load kW)", value=36.0)
-                e_hour = c_o2.number_input("Hour (0-23)", value=17)
-                e_month = st.number_input("Month (1-12)", value=7)
+                e_hufl = c_o1.number_input("HUFL (Load kW)", value=12.0)
+                e_hour = c_o2.number_input("Hour (0-23)", value=5)
+                e_month = st.number_input("Month (1-12)", value=1)
                 
                 gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
                 
@@ -235,16 +235,16 @@ if model_health is not None and model_thermal is not None:
                                         columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 health_score = model_health.predict(dga_input)[0]
                 
-                # Risk goes from 0 to 100 inversely to health
-                dga_risk = 100 - health_score 
+                # المعادلة الجديدة للمخاطر: كل ما التدهور يزيد، المخاطر تزيد (طردية)
+                dga_risk = min(100, max(0, ((health_score - 20) / 30) * 100)) 
                 
                 # 2. Thermal Risk Calculation
                 scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 ot_temp = model_thermal.predict(scada_input)[0]
                 
-                # Thermal Risk: Starts increasing after 50C, reaches 100% at 95C
-                thermal_risk = min(100, max(0, ((ot_temp - 50) / 45) * 100))
+                # مخاطر الحرارة تزيد كل ما تعدي الـ 40 درجة
+                thermal_risk = min(100, max(0, ((ot_temp - 40) / 45) * 100))
                 
                 # 3. Overall Risk (Weighted 60% DGA, 40% Thermal)
                 overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
@@ -263,7 +263,7 @@ if model_health is not None and model_thermal is not None:
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
                 st.markdown("---")
                 rc1, rc2, rc3 = st.columns(3)
-                rc1.metric("DGA Health Index", f"{health_score:.1f}/100")
+                rc1.metric("Degradation Index", f"{health_score:.1f}/60")
                 rc2.metric("Predicted Temp", f"{ot_temp:.1f} °C")
                 rc3.metric("OVERALL RISK", f"{overall_risk:.1f} %")
                 
