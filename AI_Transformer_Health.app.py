@@ -22,7 +22,7 @@ def load_models():
     try:
         model_health = joblib.load('rf_health_model.pkl')
         model_life = joblib.load('rf_life_model.pkl')
-        model_thermal = joblib.load('rf_thermal_model.pkl') 
+        model_thermal = joblib.load('rf_thermal_model.pkl')
         return model_health, model_life, model_thermal
     except Exception as e:
         st.error(f"⚠️ Model Error: {e}")
@@ -44,10 +44,9 @@ def get_duval_diagnosis(ch4, c2h4, c2h2):
     return "DT (Mixed Faults)"
 
 if model_health is not None and model_thermal is not None:
-    # تقسيم الداش بورد لـ 3 تبويبات
     tab1, tab2, tab3 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA (Thermal)", "📁 Batch Analysis"])
 
-    # --- TAB 1: DGA & OIL QUALITY (الموديل الأول والثاني) ---
+    # --- TAB 1: DGA & OIL QUALITY ---
     with tab1:
         col_input, col_output = st.columns([1, 2.2])
         with col_input:
@@ -112,22 +111,17 @@ if model_health is not None and model_thermal is not None:
                     st.plotly_chart(fig_tri, use_container_width=True)
                     st.info(f"**Diagnosis:** {diagnosis}")
 
-                # --- رسمة تأثير المتغيرات (Feature Importance) ---
+                # --- رسمة تأثير المتغيرات (Feature Importance) للغازات ---
                 st.markdown("---")
                 st.markdown("### 📊 Variables Impact (Feature Importance)")
-                
                 features_list = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
                 importances = model_health.feature_importances_
-                
                 df_imp = pd.DataFrame({'Feature': features_list, 'Importance': importances}).sort_values(by='Importance', ascending=True)
-                
-                fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', 
-                                 color='Importance', color_continuous_scale='Blues')
-                
+                fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Blues')
                 fig_imp.update_layout(height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
                 st.plotly_chart(fig_imp, use_container_width=True)
 
-    # --- TAB 2: SCADA & THERMAL (الموديل الثالث) ---
+    # --- TAB 2: SCADA & THERMAL ---
     with tab2:
         st.markdown("### 🌡️ Thermal Load Predictive Analysis (Virtual Sensor)")
         st.info("Predicts Transformer Top Oil Temperature (OT) based on active/reactive loads and time.")
@@ -137,8 +131,8 @@ if model_health is not None and model_thermal is not None:
             with st.form("thermal_form"):
                 st.markdown("**1. Time Features:**")
                 c1, c2 = st.columns(2)
-                hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14, help="Peak hours increase temp.")
-                month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7, help="Summer months increase temp.")
+                hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14)
+                month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7)
                 
                 st.markdown("**2. High Voltage Load:**")
                 hufl = st.number_input("HUFL (Active Load kW)", value=12.5)
@@ -158,10 +152,8 @@ if model_health is not None and model_thermal is not None:
             if sub_thermal:
                 t_input = pd.DataFrame([[hufl, hull, mufl, mull, lufl, lull, hour, month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
-                
                 pred_ot = model_thermal.predict(t_input)[0]
                 
-                # Logic for thermal health (Virtual Sensor limits)
                 if pred_ot < 50: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
                 elif pred_ot < 70: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Monitor cooling fans."
                 else: t_status, t_color, msg = "CRITICAL", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
@@ -171,38 +163,62 @@ if model_health is not None and model_thermal is not None:
                 tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
                 tm2.metric("Thermal Status", t_status)
                 
-                # Thermometer gauge
                 fig_t = go.Figure(go.Indicator(
-                    mode = "gauge+number",
-                    value = pred_ot,
-                    title = {'text': "Oil Temp °C"},
+                    mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
                     gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
                              'bar': {'color': t_color},
-                             'steps': [
-                                 {'range': [0, 50], 'color': "rgba(0, 204, 102, 0.4)"},
-                                 {'range': [50, 70], 'color': "rgba(255, 204, 0, 0.4)"},
-                                 {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                             'steps': [{'range': [0, 50], 'color': "rgba(0, 204, 102, 0.4)"},
+                                       {'range': [50, 70], 'color': "rgba(255, 204, 0, 0.4)"},
+                                       {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
                              'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
-                
                 fig_t.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_t, use_container_width=True)
                 st.info(f"💡 **AI Recommendation:** {msg}")
 
-    # --- TAB 3: BATCH ANALYSIS ---
+                # --- رسمة تأثير المتغيرات (Feature Importance) للحرارة ---
+                st.markdown("---")
+                st.markdown("### 📊 Variables Impact (Thermal Features)")
+                t_features_list = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
+                t_importances = model_thermal.feature_importances_
+                df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
+                
+                # استخدمنا لون أحمر ليتناسب مع فكرة الحرارة
+                fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
+                fig_t_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
+                st.plotly_chart(fig_t_imp, use_container_width=True)
+
+    # --- TAB 3: BATCH ANALYSIS (تحديث لدعم الموديلين) ---
     with tab3:
         st.markdown("### 📁 Batch Historical Analysis")
-        st.write("Upload CSV for DGA Health analysis")
-        up = st.file_uploader("Upload CSV or Excel file", type=['csv', 'xlsx'])
+        st.write("Upload a CSV/Excel file to process multiple samples at once.")
+        
+        # إضافة زرار اختيار لنوع التحليل
+        analysis_type = st.radio("Select Analysis Type:", ["🧪 DGA & Oil Quality (Health Index)", "🌡️ SCADA & Thermal (Oil Temp)"])
+        
+        up = st.file_uploader("Upload File", type=['csv', 'xlsx'])
         if up:
             df_b = pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
-            req_cols = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
             
-            if all(c in df_b.columns for c in req_cols):
-                df_b['Predicted_Health'] = model_health.predict(df_b[req_cols])
-                fig_l = px.line(df_b, y='Predicted_Health', markers=True, title="Transformer Health over Samples")
-                st.plotly_chart(fig_l, use_container_width=True)
-            else:
-                st.error("File missing required DGA columns.")
+            if "DGA" in analysis_type:
+                req_cols = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
+                if all(c in df_b.columns for c in req_cols):
+                    df_b['Predicted_Health'] = model_health.predict(df_b[req_cols])
+                    fig_l = px.line(df_b, y='Predicted_Health', markers=True, title="Transformer Health Index over Samples")
+                    st.plotly_chart(fig_l, use_container_width=True)
+                    st.dataframe(df_b[['Predicted_Health'] + req_cols].head()) # عرض جزء من الجدول
+                else:
+                    st.error(f"⚠️ Missing required columns for DGA Analysis. Expected: {', '.join(req_cols)}")
+                    
+            elif "SCADA" in analysis_type:
+                req_cols = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
+                if all(c in df_b.columns for c in req_cols):
+                    df_b['Predicted_Oil_Temp'] = model_thermal.predict(df_b[req_cols])
+                    # رسم بياني باللون الأحمر عشان الحرارة
+                    fig_l = px.line(df_b, y='Predicted_Oil_Temp', markers=True, title="Predicted Oil Temperature (°C) over Time", color_discrete_sequence=['#ff3333'])
+                    st.plotly_chart(fig_l, use_container_width=True)
+                    st.dataframe(df_b[['Predicted_Oil_Temp'] + req_cols].head()) # عرض جزء من الجدول
+                else:
+                    st.error(f"⚠️ Missing required columns for Thermal Analysis. Expected: {', '.join(req_cols)}")
 
 else:
     st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
