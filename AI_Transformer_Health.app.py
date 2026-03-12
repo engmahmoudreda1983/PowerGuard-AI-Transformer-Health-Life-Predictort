@@ -222,10 +222,7 @@ if model_health is not None and model_thermal is not None:
                 else:
                     st.error(f"⚠️ Missing required columns for Thermal Analysis. Expected: {', '.join(req_cols)}")
 
-else:
-    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
-
-# --- TAB 4: EXECUTIVE REPORT (التقرير الشامل للمشروع) ---
+    # --- TAB 4: EXECUTIVE REPORT (التقرير الشامل للمشروع) ---
     with tab4:
         st.markdown("### 📑 Overall Transformer Risk Assessment (AHI)")
         st.info("This section combines both DGA (Chemical) and SCADA (Thermal) models to generate an Executive Risk Report.")
@@ -301,3 +298,5 @@ else:
                 st.plotly_chart(fig_risk, use_container_width=True)
                 
                 st.warning(f"**Asset Manager Action:** {final_action}")
+else:
+    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
