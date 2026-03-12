@@ -117,13 +117,13 @@ if models_loaded:
                 col_gauge, col_duval = st.columns([1, 1.2])
 
                 with col_gauge:
-                    # Health Index Gauge
+                    # Health Index Gauge (Reversed Axis)
                     fig_health = go.Figure(go.Indicator(
                         mode = "gauge",
                         value = health_index_pred,
                         domain = {'x': [0, 1], 'y': [0, 1]},
                         gauge = {
-                            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                            'axis': {'range': [100, 0], 'tickwidth': 1, 'tickcolor': "white"}, # تم عكس المؤشر هنا
                             'bar': {'color': "white", 'thickness': 0.1},
                             'bgcolor': "rgba(0,0,0,0)",
                             'borderwidth': 2, 'bordercolor': "gray",
@@ -154,11 +154,11 @@ if models_loaded:
 
                 st.markdown("---")
                 
-                # 4. Feature Importance Bar Chart (RESTORED)
+                # 4. Feature Importance Bar Chart
                 st.markdown("#### 📊 Variables Impact on Transformer Health")
                 importances = model_health.feature_importances_ * 100
                 df_imp = pd.DataFrame({'Feature': input_data.columns, 'Impact (%)': importances})
-                df_imp = df_imp.sort_values(by='Impact (%)', ascending=True).tail(7) # Show top 7
+                df_imp = df_imp.sort_values(by='Impact (%)', ascending=True).tail(7)
 
                 fig_bar = px.bar(df_imp, x='Impact (%)', y='Feature', orientation='h',
                                  text='Impact (%)', color='Impact (%)', color_continuous_scale='Blues')
@@ -216,6 +216,17 @@ if models_loaded:
 
                     st.markdown("#### 📄 Detailed Predictions Table")
                     st.dataframe(df_batch[expected_cols + ['Predicted_Health_Index', 'Predicted_Life_Years']].style.highlight_min(subset=['Predicted_Health_Index'], color='red'))
+                    
+                    # زرار التحميل الجديد
+                    st.markdown("---")
+                    csv_data = df_batch.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Predictions (CSV)",
+                        data=csv_data,
+                        file_name='transformer_health_predictions.csv',
+                        mime='text/csv',
+                        use_container_width=True
+                    )
                     
             except Exception as e:
                 st.error(f"Error reading file: {e}")
