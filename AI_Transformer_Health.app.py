@@ -44,7 +44,7 @@ def get_duval_diagnosis(ch4, c2h4, c2h2):
     return "DT (Mixed Faults)"
 
 if model_health is not None and model_thermal is not None:
-    tab1, tab2, tab3 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA (Thermal)", "📁 Batch Analysis"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA", "📁 Batch Analysis", "📑 Executive Report"])
 
     # --- TAB 1: DGA & OIL QUALITY ---
     with tab1:
@@ -224,3 +224,80 @@ if model_health is not None and model_thermal is not None:
 
 else:
     st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
+
+# --- TAB 4: EXECUTIVE REPORT (التقرير الشامل للمشروع) ---
+    with tab4:
+        st.markdown("### 📑 Overall Transformer Risk Assessment (AHI)")
+        st.info("This section combines both DGA (Chemical) and SCADA (Thermal) models to generate an Executive Risk Report.")
+        
+        col_ex_in, col_ex_out = st.columns([1, 1.5])
+        
+        with col_ex_in:
+            with st.form("executive_form"):
+                st.markdown("**1. Key DGA Parameters:**")
+                e_ch4 = st.number_input("Methane (CH4)", value=10.0, key="e_ch4")
+                e_c2h4 = st.number_input("Ethylene (C2H4)", value=2.0, key="e_c2h4")
+                e_c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, key="e_c2h2")
+                e_h2 = st.number_input("Hydrogen (H2)", value=10.0, key="e_h2")
+                e_pf = st.number_input("Power Factor (%)", value=0.1, key="e_pf")
+                
+                st.markdown("**2. Key Operating Conditions:**")
+                e_hufl = st.number_input("HUFL (High Voltage Load)", value=36.0, key="e_hufl")
+                e_hour = st.number_input("Current Hour (0-23)", value=17, key="e_hour")
+                e_month = st.number_input("Current Month (1-12)", value=7, key="e_month")
+                
+                gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
+                
+        with col_ex_out:
+            if gen_report:
+                # 1. حساب الصحة من الغازات (هنثبت باقي الغازات على قيم طبيعية للتبسيط في التقرير)
+                dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, 60, 2]], 
+                                        columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
+                health_score = model_health.predict(dga_input)[0]
+                dga_risk = max(0, 100 - health_score) # تحويل الصحة لمخاطر
+                
+                # 2. حساب الحرارة المتوقعة (هنفترض باقي الأحمال متناسبة للتبسيط)
+                scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
+                                       columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
+                ot_temp = model_thermal.predict(scada_input)[0]
+                
+                # تحويل الحرارة لمخاطر (بافتراض إن 40 طبيعي=0% مخاطر، و 100 خطر=100%)
+                thermal_risk = min(100, max(0, ((ot_temp - 40) / (100 - 40)) * 100))
+                
+                # 3. دمج المخاطر (الوزن: 60% للزيت، 40% للحرارة)
+                overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
+                
+                # تحديد القرار النهائي
+                if overall_risk < 30: 
+                    final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
+                    final_action = "Continue normal operation. Next routine check in 6 months."
+                elif overall_risk < 65: 
+                    final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
+                    final_action = "Schedule maintenance. Monitor cooling systems and perform DGA re-test in 1 month."
+                else: 
+                    final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
+                    final_action = "URGENT: Isolate transformer if possible. High probability of insulation failure or overheating."
+                
+                # عرض التقرير
+                st.markdown("### 📋 Executive Summary")
+                st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
+                
+                st.markdown("---")
+                rc1, rc2, rc3 = st.columns(3)
+                rc1.metric("DGA Health Index", f"{health_score:.1f}/100")
+                rc2.metric("Predicted Temp", f"{ot_temp:.1f} °C")
+                rc3.metric("OVERALL RISK", f"{overall_risk:.1f} %")
+                
+                # رسمة المخاطر الكلية
+                fig_risk = go.Figure(go.Indicator(
+                    mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
+                    gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                             'bar': {'color': final_color},
+                             'steps': [{'range': [0, 30], 'color': "rgba(0, 204, 102, 0.4)"},
+                                       {'range': [30, 65], 'color': "rgba(255, 204, 0, 0.4)"},
+                                       {'range': [65, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                             'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
+                fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+                st.plotly_chart(fig_risk, use_container_width=True)
+                
+                st.warning(f"**Asset Manager Action:** {final_action}")
