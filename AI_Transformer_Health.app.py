@@ -154,12 +154,16 @@ if model_health is not None and model_thermal is not None:
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 pred_ot = model_thermal.predict(t_input)[0]
                 
-                # التعديل الجديد للألوان والحالات
                 if pred_ot < 50: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
                 elif pred_ot < 70: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Monitor cooling fans."
                 else: t_status, t_color, msg = "RISKY", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
                 
                 st.markdown("### 📈 Real-Time AI Thermal Prediction")
+                
+                # هنا رجعنا درجة الحرارة المتوقعة في مكانها المظبوط!
+                tm1, tm2 = st.columns(2)
+                tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
+                tm2.metric("Thermal Status", t_status)
                 
                 # عرض الترمومتر
                 fig_t = go.Figure(go.Indicator(
