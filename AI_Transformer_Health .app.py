@@ -56,25 +56,24 @@ if models_loaded:
                 hydrogen = st.number_input("Hydrogen (H2)", value=10.0, help="Partial discharge indicator.")
                 oxigen = st.number_input("Oxygen (O2)", value=500.0, help="Leakage indicator.")
                 nitrogen = st.number_input("Nitrogen (N2)", value=10000.0)
-                methane = st.number_input("Methane (CH4)", value=10.0, help="Low-temp thermal fault.")
-                co = st.number_input("Carbon Monoxide (CO)", value=50.0, help="Paper degradation.")
+                methane = st.number_input("Methane (CH4)", value=5.0, help="Low-temp thermal fault.")
+                co = st.number_input("Carbon Monoxide (CO)", value=100.0, help="Paper degradation.")
                 co2 = st.number_input("Carbon Dioxide (CO2)", value=500.0)
-                ethylene = st.number_input("Ethylene (C2H4)", value=2.0, help="High-temp thermal fault.")
-                ethane = st.number_input("Ethane (C2H6)", value=5.0)
+                ethylene = st.number_input("Ethylene (C2H4)", value=1.0, help="High-temp thermal fault.")
+                ethane = st.number_input("Ethane (C2H6)", value=2.0)
                 acethylene = st.number_input("Acetylene (C2H2)", value=0.0, help="CRITICAL: Arcing indicator.")
                 
                 st.markdown("**2. Oil Physical Properties:**")
-                dbds = st.number_input("DBDS (ppm)", value=0.5, help="Corrosive sulfur.")
-                power_factor = st.number_input("Power Factor (%)", value=0.1, help="Dielectric loss.")
-                interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=45.0, help="Oil purity.")
-                dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=60.0, help="Insulation strength.")
-                water_content = st.number_input("Water Content (ppm)", value=2.0, help="Moisture level.")
+                dbds = st.number_input("DBDS (ppm)", value=0.1, help="Corrosive sulfur.")
+                power_factor = st.number_input("Power Factor (%)", value=0.05, help="Dielectric loss.")
+                interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=48.0, help="Oil purity.")
+                dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=65.0, help="Insulation strength.")
+                water_content = st.number_input("Water Content (ppm)", value=1.0, help="Moisture level.")
                 
                 submitted = st.form_submit_button("🔍 Run AI Analysis", use_container_width=True)
 
         with col_output:
             if submitted:
-                # Prepare data
                 input_df = pd.DataFrame([[hydrogen, oxigen, nitrogen, methane, co, co2, ethylene, ethane, acethylene, dbds, power_factor, interfacial_v, dielectric_rigidity, water_content]], 
                                           columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 
@@ -86,7 +85,6 @@ if models_loaded:
                 elif health_score >= 40: status, color = "WARNING", "#ffcc00"
                 else: status, color = "RISKY", "#ff3333"
 
-                # Results Display
                 st.markdown("### 📈 AI Analysis Results")
                 k1, k2, k3 = st.columns(3)
                 k1.metric("Health Score", f"{health_score:.2f}")
@@ -95,9 +93,11 @@ if models_loaded:
 
                 col_g, col_d = st.columns([1, 1.2])
                 with col_g:
+                    # Reversed Gauge: 100 on Left (Green), 0 on Right (Red)
                     fig_g = go.Figure(go.Indicator(
                         mode="gauge", value=health_score,
-                        gauge={'axis': {'range': [100, 0]}, 'bar': {'color': "white"},
+                        gauge={'axis': {'range': [100, 0], 'tickwidth': 1},
+                               'bar': {'color': "white", 'thickness': 0.1},
                                'steps': [{'range': [70, 100], 'color': "#00cc66"},
                                          {'range': [40, 70], 'color': "#ffcc00"},
                                          {'range': [0, 40], 'color': "#ff3333"}]}))
@@ -114,12 +114,13 @@ if models_loaded:
                     st.info(f"**Duval Diagnosis:** {diagnosis}")
 
                 st.markdown("---")
-                # Bar Chart (The one that was missing)
+                # Bar Chart (FEATURE IMPORTANCE)
                 st.markdown("#### 📊 Impact of Variables on Health Score")
+                
                 imps = model_health.feature_importances_ * 100
-                df_imp = pd.DataFrame({'Feature': input_df.columns, 'Impact (%)': imps}).sort_values('Impact (%)', ascending=True).tail(7)
+                df_imp = pd.DataFrame({'Feature': input_df.columns, 'Impact (%)': imps}).sort_values('Impact (%)', ascending=True).tail(10)
                 fig_bar = px.bar(df_imp, x='Impact (%)', y='Feature', orientation='h', color='Impact (%)', color_continuous_scale='Blues')
-                fig_bar.update_layout(height=300, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font={'color': 'white'}, coloraxis_showscale=False)
+                fig_bar.update_layout(height=400, plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font={'color': 'white'}, coloraxis_showscale=False)
                 st.plotly_chart(fig_bar, use_container_width=True)
 
     # --- TAB 2: BATCH ANALYSIS ---
