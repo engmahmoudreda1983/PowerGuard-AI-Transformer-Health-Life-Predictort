@@ -22,7 +22,7 @@ def load_models():
     try:
         model_health = joblib.load('rf_health_model.pkl')
         model_life = joblib.load('rf_life_model.pkl')
-        model_thermal = joblib.load('rf_thermal_model.pkl') # الموديل الجديد
+        model_thermal = joblib.load('rf_thermal_model.pkl') 
         return model_health, model_life, model_thermal
     except Exception as e:
         st.error(f"⚠️ Model Error: {e}")
@@ -47,7 +47,7 @@ if model_health is not None and model_thermal is not None:
     # تقسيم الداش بورد لـ 3 تبويبات
     tab1, tab2, tab3 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA (Thermal)", "📁 Batch Analysis"])
 
-    # --- TAB 1: DGA & OIL QUALITY (الموديل الأول) ---
+    # --- TAB 1: DGA & OIL QUALITY (الموديل الأول والثاني) ---
     with tab1:
         col_input, col_output = st.columns([1, 2.2])
         with col_input:
@@ -112,7 +112,22 @@ if model_health is not None and model_thermal is not None:
                     st.plotly_chart(fig_tri, use_container_width=True)
                     st.info(f"**Diagnosis:** {diagnosis}")
 
-    # --- TAB 2: SCADA & THERMAL (الموديل الثاني الجديد) ---
+                # --- رسمة تأثير المتغيرات (Feature Importance) ---
+                st.markdown("---")
+                st.markdown("### 📊 Variables Impact (Feature Importance)")
+                
+                features_list = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
+                importances = model_health.feature_importances_
+                
+                df_imp = pd.DataFrame({'Feature': features_list, 'Importance': importances}).sort_values(by='Importance', ascending=True)
+                
+                fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', 
+                                 color='Importance', color_continuous_scale='Blues')
+                
+                fig_imp.update_layout(height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
+                st.plotly_chart(fig_imp, use_container_width=True)
+
+    # --- TAB 2: SCADA & THERMAL (الموديل الثالث) ---
     with tab2:
         st.markdown("### 🌡️ Thermal Load Predictive Analysis (Virtual Sensor)")
         st.info("Predicts Transformer Top Oil Temperature (OT) based on active/reactive loads and time.")
