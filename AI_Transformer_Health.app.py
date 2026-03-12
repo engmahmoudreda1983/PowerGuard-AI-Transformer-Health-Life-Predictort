@@ -111,19 +111,9 @@ if model_health is not None and model_thermal is not None:
                     st.plotly_chart(fig_tri, use_container_width=True)
                     st.info(f"**Diagnosis:** {diagnosis}")
 
-                # --- رسمة تأثير المتغيرات (Feature Importance) للغازات ---
-                st.markdown("---")
-                st.markdown("### 📊 Variables Impact (Feature Importance)")
-                features_list = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
-                importances = model_health.feature_importances_
-                df_imp = pd.DataFrame({'Feature': features_list, 'Importance': importances}).sort_values(by='Importance', ascending=True)
-                fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Blues')
-                fig_imp.update_layout(height=400, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
-                st.plotly_chart(fig_imp, use_container_width=True)
-
     # --- TAB 2: SCADA & THERMAL ---
     with tab2:
-        st.markdown("### 🌡️ Thermal Load Predictive Analysis (Saudi Calibrated)")
+        st.markdown("### 🌡️ Thermal Load Predictive Analysis")
         st.info("Predicts Transformer Top Oil Temperature (OT) adapted for high ambient temperatures.")
         
         col_t_in, col_t_out = st.columns([1, 1.5])
@@ -178,106 +168,97 @@ if model_health is not None and model_thermal is not None:
                 st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
                 st.info(f"💡 **AI Recommendation:** {msg}")
 
-                st.markdown("---")
-                st.markdown("### 📊 Variables Impact (Thermal Features)")
-                t_features_list = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
-                t_importances = model_thermal.feature_importances_
-                df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
-                fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
-                fig_t_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
-                st.plotly_chart(fig_t_imp, use_container_width=True)
-
     # --- TAB 3: BATCH ANALYSIS ---
     with tab3:
         st.markdown("### 📁 Batch Historical Analysis")
         st.write("Upload a CSV/Excel file to process multiple samples at once.")
-        
         analysis_type = st.radio("Select Analysis Type:", ["🧪 DGA & Oil Quality (Health Index)", "🌡️ SCADA & Thermal (Oil Temp)"])
-        
         up = st.file_uploader("Upload File", type=['csv', 'xlsx'])
         if up:
             df_b = pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
-            
             if "DGA" in analysis_type:
                 req_cols = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
                 if all(c in df_b.columns for c in req_cols):
                     df_b['Predicted_Health'] = model_health.predict(df_b[req_cols])
                     fig_l = px.line(df_b, y='Predicted_Health', markers=True, title="Transformer Health Index over Samples")
                     st.plotly_chart(fig_l, use_container_width=True)
-                    st.dataframe(df_b[['Predicted_Health'] + req_cols].head()) 
                 else:
-                    st.error(f"⚠️ Missing required columns for DGA Analysis. Expected: {', '.join(req_cols)}")
-                    
+                    st.error(f"⚠️ Missing required columns.")
             elif "SCADA" in analysis_type:
                 req_cols = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
                 if all(c in df_b.columns for c in req_cols):
                     df_b['Predicted_Oil_Temp'] = model_thermal.predict(df_b[req_cols])
-                    fig_l = px.line(df_b, y='Predicted_Oil_Temp', markers=True, title="Predicted Oil Temperature (°C) over Time", color_discrete_sequence=['#ff3333'])
+                    fig_l = px.line(df_b, y='Predicted_Oil_Temp', markers=True, title="Predicted Oil Temperature (°C)", color_discrete_sequence=['#ff3333'])
                     st.plotly_chart(fig_l, use_container_width=True)
-                    st.dataframe(df_b[['Predicted_Oil_Temp'] + req_cols].head()) 
                 else:
-                    st.error(f"⚠️ Missing required columns for Thermal Analysis. Expected: {', '.join(req_cols)}")
+                    st.error(f"⚠️ Missing required columns.")
 
-    # --- TAB 4: EXECUTIVE REPORT (التقرير الشامل للمشروع) ---
+    # --- TAB 4: EXECUTIVE REPORT (التقرير الشامل والمعدل) ---
     with tab4:
         st.markdown("### 📑 Overall Transformer Risk Assessment (AHI)")
-        st.info("This section combines both DGA (Chemical) and SCADA (Thermal) models to generate an Executive Risk Report.")
+        st.info("Combined DGA and SCADA metrics for complete Asset Management Risk Logs.")
         
         col_ex_in, col_ex_out = st.columns([1, 1.5])
         
         with col_ex_in:
             with st.form("executive_form"):
-                st.markdown("**1. Key DGA Parameters:**")
-                e_ch4 = st.number_input("Methane (CH4)", value=10.0, key="e_ch4")
-                e_c2h4 = st.number_input("Ethylene (C2H4)", value=2.0, key="e_c2h4")
-                e_c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, key="e_c2h2")
-                e_h2 = st.number_input("Hydrogen (H2)", value=10.0, key="e_h2")
+                st.markdown("**1. Key Fault Gases (ppm):**")
+                c_g1, c_g2 = st.columns(2)
+                e_h2 = c_g1.number_input("Hydrogen (H2)", value=10.0)
+                e_ch4 = c_g2.number_input("Methane (CH4)", value=10.0)
+                e_c2h4 = c_g1.number_input("Ethylene (C2H4)", value=2.0)
+                e_c2h2 = c_g2.number_input("Acetylene (C2H2)", value=0.0)
                 
-                st.markdown("**2. Key Physical Properties (CRITICAL):**")
-                e_pf = st.number_input("Power Factor (%)", value=0.1, key="e_pf")
-                e_dr = st.number_input("Dielectric Rigidity (kV)", value=60.0, key="e_dr", help="Very important for DGA Health")
-                e_wc = st.number_input("Water Content (ppm)", value=2.0, key="e_wc", help="Very important for DGA Health")
+                st.markdown("**2. Paper Degradation Gases (ppm):**")
+                c_p1, c_p2 = st.columns(2)
+                e_co = c_p1.number_input("Carbon Monoxide (CO)", value=100.0)
+                e_co2 = c_p2.number_input("Carbon Dioxide (CO2)", value=500.0)
                 
-                st.markdown("**3. Key Operating Conditions:**")
-                e_hufl = st.number_input("HUFL (High Voltage Load)", value=36.0, key="e_hufl")
-                e_hour = st.number_input("Current Hour (0-23)", value=17, key="e_hour")
-                e_month = st.number_input("Current Month (1-12)", value=7, key="e_month")
+                st.markdown("**3. Physical Properties (CRITICAL):**")
+                c_ph1, c_ph2 = st.columns(2)
+                e_dr = c_ph1.number_input("Dielectric Rigidity (kV)", value=60.0)
+                e_wc = c_ph2.number_input("Water Content (ppm)", value=2.0)
+                e_pf = st.number_input("Power Factor (%)", value=0.1)
+                
+                st.markdown("**4. Operating & Ambient Conditions:**")
+                c_o1, c_o2 = st.columns(2)
+                e_hufl = c_o1.number_input("HUFL (Load kW)", value=36.0)
+                e_hour = c_o2.number_input("Hour (0-23)", value=17)
+                e_month = st.number_input("Month (1-12)", value=7)
                 
                 gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
                 
         with col_ex_out:
             if gen_report:
-                # 1. حساب الصحة باستخدام المتغيرات الفيزيائية
-                dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
+                # 1. DGA Risk Calculation
+                dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, e_co, e_co2, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
                                         columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 health_score = model_health.predict(dga_input)[0]
                 
-                # مخاطر الغازات: لو الصحة نزلت عن 85 تبدأ الخطورة تزيد، لو وصلت 40 يبقى الخطر 100%
-                dga_risk = min(100, max(0, ((85 - health_score) / 45) * 100)) 
+                # Risk goes from 0 to 100 inversely to health
+                dga_risk = 100 - health_score 
                 
-                # 2. حساب الحرارة
+                # 2. Thermal Risk Calculation
                 scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 ot_temp = model_thermal.predict(scada_input)[0]
                 
-                # مخاطر الحرارة: لو زادت عن 40 تبدأ المخاطر، لو وصلت 85 يبقى الخطر 100%
-                thermal_risk = min(100, max(0, ((ot_temp - 40) / 45) * 100))
+                # Thermal Risk: Starts increasing after 50C, reaches 100% at 95C
+                thermal_risk = min(100, max(0, ((ot_temp - 50) / 45) * 100))
                 
-                # 3. دمج المخاطر
+                # 3. Overall Risk (Weighted 60% DGA, 40% Thermal)
                 overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
                 
-                # تحديد القرار
-                if overall_risk < 35: 
+                if overall_risk <= 35: 
                     final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
                     final_action = "Continue normal operation. Next routine check in 6 months."
-                elif overall_risk < 70: 
+                elif overall_risk <= 70: 
                     final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
-                    final_action = "Schedule maintenance. Monitor cooling systems and perform DGA re-test in 1 month."
+                    final_action = "Schedule maintenance. Monitor cooling systems and update Risk Logs."
                 else: 
                     final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
-                    final_action = "URGENT: Isolate transformer if possible. High probability of insulation failure or overheating."
+                    final_action = "URGENT: Isolate transformer. High probability of insulation failure. Initiate FMEA procedure."
                 
-                # العرض
                 st.markdown("### 📋 Executive Summary")
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
                 st.markdown("---")
@@ -300,4 +281,4 @@ if model_health is not None and model_thermal is not None:
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                 st.warning(f"**Asset Manager Action:** {final_action}")
 else:
-    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
+    st.error("⚠️ Model files not detected!")
