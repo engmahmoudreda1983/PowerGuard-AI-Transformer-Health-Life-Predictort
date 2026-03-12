@@ -154,7 +154,6 @@ if model_health is not None and model_thermal is not None:
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 pred_ot = model_thermal.predict(t_input)[0]
                 
-                # الحدود الخاصة بالمحولات في بيئة السعودية (الحارة)
                 if pred_ot < 60: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
                 elif pred_ot < 80: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Ensure cooling fans are active."
                 else: t_status, t_color, msg = "RISKY", "#ff3333", "CRITICAL OVERHEATING! Reduce load immediately."
@@ -165,7 +164,6 @@ if model_health is not None and model_thermal is not None:
                 tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
                 tm2.metric("Thermal Status", t_status)
                 
-                # الترمومتر مدرج من 20 لـ 120 درجة مئوية
                 fig_t = go.Figure(go.Indicator(
                     mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
                     gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'tickcolor': "white"},
@@ -180,13 +178,11 @@ if model_health is not None and model_thermal is not None:
                 st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
                 st.info(f"💡 **AI Recommendation:** {msg}")
 
-                # --- رسمة تأثير المتغيرات (Feature Importance) للحرارة ---
                 st.markdown("---")
                 st.markdown("### 📊 Variables Impact (Thermal Features)")
                 t_features_list = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
                 t_importances = model_thermal.feature_importances_
                 df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
-                
                 fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
                 fig_t_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
                 st.plotly_chart(fig_t_imp, use_container_width=True)
@@ -236,9 +232,13 @@ if model_health is not None and model_thermal is not None:
                 e_c2h4 = st.number_input("Ethylene (C2H4)", value=2.0, key="e_c2h4")
                 e_c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, key="e_c2h2")
                 e_h2 = st.number_input("Hydrogen (H2)", value=10.0, key="e_h2")
-                e_pf = st.number_input("Power Factor (%)", value=0.1, key="e_pf")
                 
-                st.markdown("**2. Key Operating Conditions:**")
+                st.markdown("**2. Key Physical Properties (CRITICAL):**")
+                e_pf = st.number_input("Power Factor (%)", value=0.1, key="e_pf")
+                e_dr = st.number_input("Dielectric Rigidity (kV)", value=60.0, key="e_dr", help="Very important for DGA Health")
+                e_wc = st.number_input("Water Content (ppm)", value=2.0, key="e_wc", help="Very important for DGA Health")
+                
+                st.markdown("**3. Key Operating Conditions:**")
                 e_hufl = st.number_input("HUFL (High Voltage Load)", value=36.0, key="e_hufl")
                 e_hour = st.number_input("Current Hour (0-23)", value=17, key="e_hour")
                 e_month = st.number_input("Current Month (1-12)", value=7, key="e_month")
@@ -246,30 +246,27 @@ if model_health is not None and model_thermal is not None:
                 gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
                 
         with col_ex_out:
-           with col_ex_out:
             if gen_report:
-                # 1. حساب الصحة من الغازات 
-                dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, 60, 2]], 
+                # 1. حساب الصحة باستخدام المتغيرات الفيزيائية
+                dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
                                         columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 health_score = model_health.predict(dga_input)[0]
                 
-                # === التعديل هنا: زيادة حساسية المخاطر للغازات ===
-                # هنعتبر الصحة الأقل من 75 تبدأ في الخطورة، والـ 40 خطر كارثي
-                dga_risk = min(100, max(0, ((85 - health_score) / 45) * 100))
+                # مخاطر الغازات: لو الصحة نزلت عن 85 تبدأ الخطورة تزيد، لو وصلت 40 يبقى الخطر 100%
+                dga_risk = min(100, max(0, ((85 - health_score) / 45) * 100)) 
                 
-                # 2. حساب الحرارة المتوقعة 
+                # 2. حساب الحرارة
                 scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 ot_temp = model_thermal.predict(scada_input)[0]
                 
-                # === التعديل هنا: زيادة حساسية المخاطر للحرارة ===
-                # الحرارة الطبيعية 40، والـ 75 تعتبر خطر جداً
-                thermal_risk = min(100, max(0, ((ot_temp - 40) / 35) * 100))
+                # مخاطر الحرارة: لو زادت عن 40 تبدأ المخاطر، لو وصلت 85 يبقى الخطر 100%
+                thermal_risk = min(100, max(0, ((ot_temp - 40) / 45) * 100))
                 
-                # 3. دمج المخاطر (60% للغازات، 40% للحرارة)
+                # 3. دمج المخاطر
                 overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
                 
-                # تحديد القرار النهائي بناءً على المخاطر الكلية
+                # تحديد القرار
                 if overall_risk < 35: 
                     final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
                     final_action = "Continue normal operation. Next routine check in 6 months."
@@ -280,17 +277,15 @@ if model_health is not None and model_thermal is not None:
                     final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
                     final_action = "URGENT: Isolate transformer if possible. High probability of insulation failure or overheating."
                 
-                # عرض التقرير
+                # العرض
                 st.markdown("### 📋 Executive Summary")
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
-                
                 st.markdown("---")
                 rc1, rc2, rc3 = st.columns(3)
                 rc1.metric("DGA Health Index", f"{health_score:.1f}/100")
                 rc2.metric("Predicted Temp", f"{ot_temp:.1f} °C")
                 rc3.metric("OVERALL RISK", f"{overall_risk:.1f} %")
                 
-                # رسمة المخاطر الكلية
                 fig_risk = go.Figure(go.Indicator(
                     mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
                     gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
@@ -304,3 +299,5 @@ if model_health is not None and model_thermal is not None:
                 
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                 st.warning(f"**Asset Manager Action:** {final_action}")
+else:
+    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
