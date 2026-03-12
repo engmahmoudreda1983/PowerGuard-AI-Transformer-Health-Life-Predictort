@@ -154,15 +154,14 @@ if model_health is not None and model_thermal is not None:
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 pred_ot = model_thermal.predict(t_input)[0]
                 
+                # التعديل الجديد للألوان والحالات
                 if pred_ot < 50: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
                 elif pred_ot < 70: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Monitor cooling fans."
-                else: t_status, t_color, msg = "CRITICAL", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
+                else: t_status, t_color, msg = "RISKY", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
                 
                 st.markdown("### 📈 Real-Time AI Thermal Prediction")
-                tm1, tm2 = st.columns(2)
-                tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
-                tm2.metric("Thermal Status", t_status)
                 
+                # عرض الترمومتر
                 fig_t = go.Figure(go.Indicator(
                     mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
                     gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
@@ -171,8 +170,12 @@ if model_health is not None and model_thermal is not None:
                                        {'range': [50, 70], 'color': "rgba(255, 204, 0, 0.4)"},
                                        {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
                              'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
-                fig_t.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
+                fig_t.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_t, use_container_width=True)
+                
+                # إضافة الحالة تحت المؤشر مباشرة
+                st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
+                
                 st.info(f"💡 **AI Recommendation:** {msg}")
 
                 # --- رسمة تأثير المتغيرات (Feature Importance) للحرارة ---
@@ -182,17 +185,15 @@ if model_health is not None and model_thermal is not None:
                 t_importances = model_thermal.feature_importances_
                 df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
                 
-                # استخدمنا لون أحمر ليتناسب مع فكرة الحرارة
                 fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
                 fig_t_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
                 st.plotly_chart(fig_t_imp, use_container_width=True)
 
-    # --- TAB 3: BATCH ANALYSIS (تحديث لدعم الموديلين) ---
+    # --- TAB 3: BATCH ANALYSIS ---
     with tab3:
         st.markdown("### 📁 Batch Historical Analysis")
         st.write("Upload a CSV/Excel file to process multiple samples at once.")
         
-        # إضافة زرار اختيار لنوع التحليل
         analysis_type = st.radio("Select Analysis Type:", ["🧪 DGA & Oil Quality (Health Index)", "🌡️ SCADA & Thermal (Oil Temp)"])
         
         up = st.file_uploader("Upload File", type=['csv', 'xlsx'])
@@ -205,7 +206,7 @@ if model_health is not None and model_thermal is not None:
                     df_b['Predicted_Health'] = model_health.predict(df_b[req_cols])
                     fig_l = px.line(df_b, y='Predicted_Health', markers=True, title="Transformer Health Index over Samples")
                     st.plotly_chart(fig_l, use_container_width=True)
-                    st.dataframe(df_b[['Predicted_Health'] + req_cols].head()) # عرض جزء من الجدول
+                    st.dataframe(df_b[['Predicted_Health'] + req_cols].head()) 
                 else:
                     st.error(f"⚠️ Missing required columns for DGA Analysis. Expected: {', '.join(req_cols)}")
                     
@@ -213,10 +214,9 @@ if model_health is not None and model_thermal is not None:
                 req_cols = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
                 if all(c in df_b.columns for c in req_cols):
                     df_b['Predicted_Oil_Temp'] = model_thermal.predict(df_b[req_cols])
-                    # رسم بياني باللون الأحمر عشان الحرارة
                     fig_l = px.line(df_b, y='Predicted_Oil_Temp', markers=True, title="Predicted Oil Temperature (°C) over Time", color_discrete_sequence=['#ff3333'])
                     st.plotly_chart(fig_l, use_container_width=True)
-                    st.dataframe(df_b[['Predicted_Oil_Temp'] + req_cols].head()) # عرض جزء من الجدول
+                    st.dataframe(df_b[['Predicted_Oil_Temp'] + req_cols].head()) 
                 else:
                     st.error(f"⚠️ Missing required columns for Thermal Analysis. Expected: {', '.join(req_cols)}")
 
