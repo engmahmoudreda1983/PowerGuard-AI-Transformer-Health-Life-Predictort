@@ -62,23 +62,23 @@ if models_loaded:
             st.markdown("### 📊 Parameters (Inputs)")
             with st.form("input_form"):
                 st.markdown("**1. Dissolved Gases (DGA - ppm):**")
-                hydrogen = st.number_input("Hydrogen (H2)", value=100.0, step=10.0)
-                oxigen = st.number_input("Oxygen (O2)", value=5000.0, step=100.0)
-                nitrogen = st.number_input("Nitrogen (N2)", value=40000.0, step=1000.0)
-                methane = st.number_input("Methane (CH4)", value=50.0, step=5.0)
-                co = st.number_input("Carbon Monoxide (CO)", value=200.0, step=10.0)
-                co2 = st.number_input("Carbon Dioxide (CO2)", value=1500.0, step=50.0)
-                ethylene = st.number_input("Ethylene (C2H4)", value=10.0, step=2.0)
-                ethane = st.number_input("Ethane (C2H6)", value=20.0, step=5.0)
-                acethylene = st.number_input("Acetylene (C2H2)", value=0.0, step=1.0)
+                hydrogen = st.number_input("Hydrogen (H2)", value=100.0, step=10.0, help="Partial discharge or low-energy electrical faults.")
+                oxigen = st.number_input("Oxygen (O2)", value=5000.0, step=100.0, help="Atmospheric leaks or oil oxidation.")
+                nitrogen = st.number_input("Nitrogen (N2)", value=40000.0, step=1000.0, help="Blanket gas; changes indicate leaks.")
+                methane = st.number_input("Methane (CH4)", value=50.0, step=5.0, help="Low-temperature thermal faults.")
+                co = st.number_input("Carbon Monoxide (CO)", value=200.0, step=10.0, help="Cellulose (paper) insulation degradation.")
+                co2 = st.number_input("Carbon Dioxide (CO2)", value=1500.0, step=50.0, help="Normal aging or severe paper degradation.")
+                ethylene = st.number_input("Ethylene (C2H4)", value=10.0, step=2.0, help="High-temperature thermal faults (>700°C).")
+                ethane = st.number_input("Ethane (C2H6)", value=20.0, step=5.0, help="Medium-temperature thermal faults.")
+                acethylene = st.number_input("Acetylene (C2H2)", value=0.0, step=1.0, help="CRITICAL: High-energy arcing or sparking.")
 
                 st.markdown("---")
                 st.markdown("**2. Oil Physical Properties:**")
-                dbds = st.number_input("DBDS (ppm)", value=10.0, step=1.0)
-                power_factor = st.number_input("Power Factor (%)", value=1.5, step=0.1)
-                interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=40.0, step=1.0)
-                dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=50.0, step=1.0)
-                water_content = st.number_input("Water Content (ppm)", value=15.0, step=1.0)
+                dbds = st.number_input("DBDS (ppm)", value=10.0, step=1.0, help="Corrosive sulfur indicator.")
+                power_factor = st.number_input("Power Factor (%)", value=1.5, step=0.1, help="Dielectric dissipation factor.")
+                interfacial_v = st.number_input("Interfacial Tension (mN/m)", value=40.0, step=1.0, help="Higher is better. Indicates purity.")
+                dielectric_rigidity = st.number_input("Dielectric Rigidity (kV)", value=50.0, step=1.0, help="Breakdown Voltage. Insulation strength.")
+                water_content = st.number_input("Water Content (ppm)", value=15.0, step=1.0, help="Moisture level.")
                 
                 submitted = st.form_submit_button("🔍 Run AI Analysis", use_container_width=True)
 
@@ -152,6 +152,24 @@ if models_loaded:
                     st.plotly_chart(fig_duval, use_container_width=True)
                     st.info(f"**Duval Diagnosis:** {duval_fault}")
 
+                st.markdown("---")
+                
+                # 4. Feature Importance Bar Chart (RESTORED)
+                st.markdown("#### 📊 Variables Impact on Transformer Health")
+                importances = model_health.feature_importances_ * 100
+                df_imp = pd.DataFrame({'Feature': input_data.columns, 'Impact (%)': importances})
+                df_imp = df_imp.sort_values(by='Impact (%)', ascending=True).tail(7) # Show top 7
+
+                fig_bar = px.bar(df_imp, x='Impact (%)', y='Feature', orientation='h',
+                                 text='Impact (%)', color='Impact (%)', color_continuous_scale='Blues')
+                
+                fig_bar.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                fig_bar.update_layout(height=250, margin=dict(l=0, r=20, t=10, b=0), 
+                                      plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", 
+                                      font={'color': 'white'}, coloraxis_showscale=False)
+                
+                st.plotly_chart(fig_bar, use_container_width=True)
+
             else:
                 st.info("👈 Enter the readings in the left panel and click 'Run AI Analysis'.")
 
@@ -171,7 +189,6 @@ if models_loaded:
                 else:
                     df_batch = pd.read_excel(uploaded_file)
                 
-                # Verify columns
                 expected_cols = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 
                                  'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 
                                  'Interfacial V', 'Dielectric rigidity', 'Water content']
@@ -183,17 +200,13 @@ if models_loaded:
                 else:
                     st.success("✅ File loaded successfully. Running AI Batch Analysis...")
                     
-                    # Predictions
                     df_batch['Predicted_Health_Index'] = model_health.predict(df_batch[expected_cols])
                     df_batch['Predicted_Life_Years'] = model_life.predict(df_batch[expected_cols])
                     
-                    # Display Trend Chart
                     st.markdown("#### 📉 Health Index Trend Over Time")
-                    # Assuming index represents time/samples
                     fig_trend = px.line(df_batch, y='Predicted_Health_Index', markers=True, 
                                         title="Transformer Health Degradation Trend")
                     
-                    # Add Risk Zones to background
                     fig_trend.add_hrect(y0=0, y1=40, fillcolor="red", opacity=0.2, layer="below", line_width=0)
                     fig_trend.add_hrect(y0=40, y1=70, fillcolor="orange", opacity=0.2, layer="below", line_width=0)
                     fig_trend.add_hrect(y0=70, y1=100, fillcolor="green", opacity=0.2, layer="below", line_width=0)
@@ -201,7 +214,6 @@ if models_loaded:
                     fig_trend.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                     st.plotly_chart(fig_trend, use_container_width=True)
 
-                    # Display Dataframe
                     st.markdown("#### 📄 Detailed Predictions Table")
                     st.dataframe(df_batch[expected_cols + ['Predicted_Health_Index', 'Predicted_Life_Years']].style.highlight_min(subset=['Predicted_Health_Index'], color='red'))
                     
