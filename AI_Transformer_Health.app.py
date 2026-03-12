@@ -123,8 +123,8 @@ if model_health is not None and model_thermal is not None:
 
     # --- TAB 2: SCADA & THERMAL ---
     with tab2:
-        st.markdown("### 🌡️ Thermal Load Predictive Analysis (Virtual Sensor)")
-        st.info("Predicts Transformer Top Oil Temperature (OT) based on active/reactive loads and time.")
+        st.markdown("### 🌡️ Thermal Load Predictive Analysis (Saudi Calibrated)")
+        st.info("Predicts Transformer Top Oil Temperature (OT) adapted for high ambient temperatures.")
         
         col_t_in, col_t_out = st.columns([1, 1.5])
         with col_t_in:
@@ -154,32 +154,30 @@ if model_health is not None and model_thermal is not None:
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 pred_ot = model_thermal.predict(t_input)[0]
                 
-                if pred_ot < 50: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
-                elif pred_ot < 70: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Monitor cooling fans."
-                else: t_status, t_color, msg = "RISKY", "#ff3333", "OVERHEATING RISK! Reduce load immediately."
+                # الحدود الخاصة بالمحولات في بيئة السعودية (الحارة)
+                if pred_ot < 60: t_status, t_color, msg = "NORMAL", "#00cc66", "Temperature is within safe operating limits."
+                elif pred_ot < 80: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Ensure cooling fans are active."
+                else: t_status, t_color, msg = "RISKY", "#ff3333", "CRITICAL OVERHEATING! Reduce load immediately."
                 
                 st.markdown("### 📈 Real-Time AI Thermal Prediction")
                 
-                # هنا رجعنا درجة الحرارة المتوقعة في مكانها المظبوط!
                 tm1, tm2 = st.columns(2)
                 tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
                 tm2.metric("Thermal Status", t_status)
                 
-                # عرض الترمومتر
+                # الترمومتر مدرج من 20 لـ 120 درجة مئوية
                 fig_t = go.Figure(go.Indicator(
                     mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
-                    gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                    gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'tickcolor': "white"},
                              'bar': {'color': t_color},
-                             'steps': [{'range': [0, 50], 'color': "rgba(0, 204, 102, 0.4)"},
-                                       {'range': [50, 70], 'color': "rgba(255, 204, 0, 0.4)"},
-                                       {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                             'steps': [{'range': [20, 60], 'color': "rgba(0, 204, 102, 0.4)"},
+                                       {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
+                                       {'range': [80, 120], 'color': "rgba(255, 51, 51, 0.4)"}],
                              'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
                 fig_t.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_t, use_container_width=True)
                 
-                # إضافة الحالة تحت المؤشر مباشرة
                 st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
-                
                 st.info(f"💡 **AI Recommendation:** {msg}")
 
                 # --- رسمة تأثير المتغيرات (Feature Importance) للحرارة ---
