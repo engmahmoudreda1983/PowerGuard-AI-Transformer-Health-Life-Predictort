@@ -246,29 +246,34 @@ if model_health is not None and model_thermal is not None:
                 gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
                 
         with col_ex_out:
+           with col_ex_out:
             if gen_report:
                 # 1. حساب الصحة من الغازات 
                 dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, 60, 2]], 
                                         columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 health_score = model_health.predict(dga_input)[0]
-                dga_risk = max(0, 100 - health_score) 
+                
+                # === التعديل هنا: زيادة حساسية المخاطر للغازات ===
+                # هنعتبر الصحة الأقل من 75 تبدأ في الخطورة، والـ 40 خطر كارثي
+                dga_risk = min(100, max(0, ((85 - health_score) / 45) * 100))
                 
                 # 2. حساب الحرارة المتوقعة 
                 scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 ot_temp = model_thermal.predict(scada_input)[0]
                 
-                # تحويل الحرارة لمخاطر
-                thermal_risk = min(100, max(0, ((ot_temp - 40) / (100 - 40)) * 100))
+                # === التعديل هنا: زيادة حساسية المخاطر للحرارة ===
+                # الحرارة الطبيعية 40، والـ 75 تعتبر خطر جداً
+                thermal_risk = min(100, max(0, ((ot_temp - 40) / 35) * 100))
                 
-                # 3. دمج المخاطر 
+                # 3. دمج المخاطر (60% للغازات، 40% للحرارة)
                 overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
                 
-                # تحديد القرار النهائي
-                if overall_risk < 30: 
+                # تحديد القرار النهائي بناءً على المخاطر الكلية
+                if overall_risk < 35: 
                     final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
                     final_action = "Continue normal operation. Next routine check in 6 months."
-                elif overall_risk < 65: 
+                elif overall_risk < 70: 
                     final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
                     final_action = "Schedule maintenance. Monitor cooling systems and perform DGA re-test in 1 month."
                 else: 
@@ -290,16 +295,12 @@ if model_health is not None and model_thermal is not None:
                     mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
                     gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
                              'bar': {'color': final_color},
-                             'steps': [{'range': [0, 30], 'color': "rgba(0, 204, 102, 0.4)"},
-                                       {'range': [30, 65], 'color': "rgba(255, 204, 0, 0.4)"},
-                                       {'range': [65, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                             'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
+                                       {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
+                                       {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
                              'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
                 fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_risk, use_container_width=True)
                 
-                # === الإضافة الجديدة: الكلمة تحت العداد ===
                 st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
-                
                 st.warning(f"**Asset Manager Action:** {final_action}")
-else:
-    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
