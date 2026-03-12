@@ -247,21 +247,21 @@ if model_health is not None and model_thermal is not None:
                 
         with col_ex_out:
             if gen_report:
-                # 1. حساب الصحة من الغازات (هنثبت باقي الغازات على قيم طبيعية للتبسيط في التقرير)
+                # 1. حساب الصحة من الغازات 
                 dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, 100, 500, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, 60, 2]], 
                                         columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                 health_score = model_health.predict(dga_input)[0]
-                dga_risk = max(0, 100 - health_score) # تحويل الصحة لمخاطر
+                dga_risk = max(0, 100 - health_score) 
                 
-                # 2. حساب الحرارة المتوقعة (هنفترض باقي الأحمال متناسبة للتبسيط)
+                # 2. حساب الحرارة المتوقعة 
                 scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
                                        columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
                 ot_temp = model_thermal.predict(scada_input)[0]
                 
-                # تحويل الحرارة لمخاطر (بافتراض إن 40 طبيعي=0% مخاطر، و 100 خطر=100%)
+                # تحويل الحرارة لمخاطر
                 thermal_risk = min(100, max(0, ((ot_temp - 40) / (100 - 40)) * 100))
                 
-                # 3. دمج المخاطر (الوزن: 60% للزيت، 40% للحرارة)
+                # 3. دمج المخاطر 
                 overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
                 
                 # تحديد القرار النهائي
@@ -296,6 +296,9 @@ if model_health is not None and model_thermal is not None:
                              'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
                 fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_risk, use_container_width=True)
+                
+                # === الإضافة الجديدة: الكلمة تحت العداد ===
+                st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                 
                 st.warning(f"**Asset Manager Action:** {final_action}")
 else:
