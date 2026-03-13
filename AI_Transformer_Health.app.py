@@ -53,7 +53,7 @@ else:
     st.markdown("""
     <div style='background-color: #0b2e59; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
         <h1 style='color: #ffffff; text-align: center; margin: 0;'>AI Predictive Maintenance ⚡</h1>
-        <h3 style='color: #4da6ff; text-align: center; margin: 5px 0 0 0;'>Power Transformers DGA & Health Assessment</h3>
+        <h3 style='color: #4da6ff; text-align: center; margin: 5px 0 0 0;'>Power Transformers Fleet Management</h3>
     </div>
     """, unsafe_allow_html=True)
 
@@ -102,22 +102,22 @@ else:
                 st.markdown("### 📊 DGA Parameters")
                 with st.form("input_form"):
                     st.markdown("**1. Dissolved Gases (ppm):**")
-                    h2 = st.number_input("Hydrogen (H2)", value=5.0, help="High levels indicate partial discharge or low energy faults.")
-                    o2 = st.number_input("Oxygen (O2)", value=500.0, help="Indicates leak in sealing or excessive paper aging.")
-                    n2 = st.number_input("Nitrogen (N2)", value=10000.0, help="Inert gas, usually part of atmospheric air or nitrogen blanket.")
-                    ch4 = st.number_input("Methane (CH4)", value=2.0, help="Indicates low temperature thermal faults (< 300°C).")
-                    co = st.number_input("Carbon Monoxide (CO)", value=100.0, help="Primary indicator of severe paper insulation degradation.")
-                    co2 = st.number_input("Carbon Dioxide (CO2)", value=300.0, help="Indicates normal paper aging, but high ratio to CO implies localized overheating.")
-                    c2h4 = st.number_input("Ethylene (C2H4)", value=1.0, help="Indicates high temperature thermal faults (> 700°C).")
-                    c2h6 = st.number_input("Ethane (C2H6)", value=5.0, help="Indicates moderate temperature thermal faults (300°C - 700°C).")
-                    c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, help="CRITICAL: Indicates arcing (high energy discharge) and extreme localized heating.")
+                    h2 = st.number_input("Hydrogen (H2)", value=5.0)
+                    o2 = st.number_input("Oxygen (O2)", value=500.0)
+                    n2 = st.number_input("Nitrogen (N2)", value=10000.0)
+                    ch4 = st.number_input("Methane (CH4)", value=2.0)
+                    co = st.number_input("Carbon Monoxide (CO)", value=100.0)
+                    co2 = st.number_input("Carbon Dioxide (CO2)", value=300.0)
+                    c2h4 = st.number_input("Ethylene (C2H4)", value=1.0)
+                    c2h6 = st.number_input("Ethane (C2H6)", value=5.0)
+                    c2h2 = st.number_input("Acetylene (C2H2)", value=0.0)
                     
                     st.markdown("**2. Physical Properties:**")
-                    dbds = st.number_input("DBDS (ppm)", value=0.1, help="Corrosive sulfur compound, harmful to copper winding.")
-                    pf = st.number_input("Power Factor (%)", value=0.05, help="Measure of dielectric loss in the oil. High value means contamination.")
-                    ift = st.number_input("Interfacial Tension (mN/m)", value=45.0, help="Indicates presence of polar contaminants or sludge. Low value is bad.")
-                    dr = st.number_input("Dielectric Rigidity (kV)", value=70.0, help="Breakdown voltage. The ability of oil to withstand electrical stress.")
-                    wc = st.number_input("Water Content (ppm)", value=2.0, help="Moisture in oil reduces dielectric strength and accelerates paper aging.")
+                    dbds = st.number_input("DBDS (ppm)", value=0.1)
+                    pf = st.number_input("Power Factor (%)", value=0.05)
+                    ift = st.number_input("Interfacial Tension (mN/m)", value=45.0)
+                    dr = st.number_input("Dielectric Rigidity (kV)", value=70.0)
+                    wc = st.number_input("Water Content (ppm)", value=2.0)
                     
                     submitted = st.form_submit_button("🔍 Analyze Oil Health", use_container_width=True)
 
@@ -140,13 +140,13 @@ else:
                     m3.metric("Life Expectancy", f"{l_yrs:.1f} Yrs")
                     
                     conf_h = get_model_confidence(model_health, input_df)
-                    m4.metric("AI Confidence", f"{conf_h:.1f} %", help="Calculated based on the variance of predictions across 100 Decision Trees.")
+                    m4.metric("AI Confidence", f"{conf_h:.1f} %")
 
                     col_g, col_d = st.columns([1, 1.2])
                     with col_g:
                         fig_g = go.Figure(go.Indicator(
                             mode="gauge+number", value=h_score,
-                            gauge={'axis': {'range': [0, 60], 'tickwidth': 1, 'tickmode': 'array', 'tickvals': [0, 30, 45, 60]},
+                            gauge={'axis': {'range': [0, 60], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 30, 45, 60]},
                                    'bar': {'color': "white", 'thickness': 0.15},
                                    'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                              {'range': [30, 45], 'color': "#ffcc00"},
@@ -162,40 +162,30 @@ else:
                         fig_tri.update_layout(title="Duval Triangle Diagnostic", height=320, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                         st.plotly_chart(fig_tri, use_container_width=True)
                         st.info(f"**Diagnosis:** {diagnosis}")
-                    
-                    st.markdown("---")
-                    st.markdown("### 📊 Variables Impact (Feature Importance)")
-                    features_list = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
-                    importances = model_health.feature_importances_
-                    df_imp = pd.DataFrame({'Feature': features_list, 'Importance': importances}).sort_values(by='Importance', ascending=True)
-                    fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Blues')
-                    fig_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
-                    st.plotly_chart(fig_imp, use_container_width=True)
 
         # --- TAB 2: SCADA & THERMAL ---
         with tab2:
             st.markdown("### 🌡️ Thermal Load Predictive Analysis")
-            st.info("Predicts Transformer Top Oil Temperature (OT) adapted for high ambient temperatures.")
             
             col_t_in, col_t_out = st.columns([1, 1.5])
             with col_t_in:
                 with st.form("thermal_form"):
                     st.markdown("**1. Time Features:**")
                     c1, c2 = st.columns(2)
-                    hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14, help="Hour of the day. Affects ambient temperature.")
-                    month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7, help="Month of the year. Affects seasonal base temperature.")
+                    hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14)
+                    month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7)
                     
                     st.markdown("**2. High Voltage Load:**")
-                    hufl = st.number_input("HUFL (Active Load kW)", value=12.5, help="High Use Full Load: Active power demand on the high voltage side.")
-                    hull = st.number_input("HULL (Reactive Load kVAR)", value=3.2, help="High Use Low Load: Reactive power demand on the high voltage side.")
+                    hufl = st.number_input("HUFL (Active Load kW)", value=12.5)
+                    hull = st.number_input("HULL (Reactive Load kVAR)", value=3.2)
                     
                     st.markdown("**3. Medium Voltage Load:**")
-                    mufl = st.number_input("MUFL (Active Load kW)", value=8.1, help="Medium Use Full Load: Active power on the medium voltage side.")
-                    mull = st.number_input("MULL (Reactive Load kVAR)", value=1.5, help="Medium Use Low Load: Reactive power on the medium voltage side.")
+                    mufl = st.number_input("MUFL (Active Load kW)", value=8.1)
+                    mull = st.number_input("MULL (Reactive Load kVAR)", value=1.5)
                     
                     st.markdown("**4. Low Voltage Load:**")
-                    lufl = st.number_input("LUFL (Active Load kW)", value=4.5, help="Low Use Full Load: Active power on the low voltage side.")
-                    lull = st.number_input("LULL (Reactive Load kVAR)", value=0.8, help="Low Use Low Load: Reactive power on the low voltage side.")
+                    lufl = st.number_input("LUFL (Active Load kW)", value=4.5)
+                    lull = st.number_input("LULL (Reactive Load kVAR)", value=0.8)
                     
                     sub_thermal = st.form_submit_button("🌡️ Predict Oil Temp", use_container_width=True)
                     
@@ -209,18 +199,16 @@ else:
                     elif pred_ot < 80: t_status, t_color, msg = "WARNING", "#ffcc00", "High load detected. Ensure cooling fans are active."
                     else: t_status, t_color, msg = "RISKY", "#ff3333", "CRITICAL OVERHEATING! Reduce load immediately."
                     
-                    st.markdown("### 📈 Real-Time AI Thermal Prediction")
-                    
                     tm1, tm2, tm3 = st.columns(3)
                     tm1.metric("Predicted Top Oil Temp", f"{pred_ot:.1f} °C")
                     tm2.metric("Thermal Status", t_status)
                     
                     conf_t = get_model_confidence(model_thermal, t_input)
-                    tm3.metric("AI Confidence", f"{conf_t:.1f} %", help="Calculated using prediction variance in real-time SCADA conditions.")
+                    tm3.metric("AI Confidence", f"{conf_t:.1f} %")
                     
                     fig_t = go.Figure(go.Indicator(
                         mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
-                        gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120]},
+                        gauge = {'axis': {'range': [20, 120], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120]},
                                  'bar': {'color': t_color},
                                  'steps': [{'range': [20, 60], 'color': "rgba(0, 204, 102, 0.4)"},
                                            {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -231,15 +219,6 @@ else:
                     
                     st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
                     st.info(f"💡 **AI Recommendation:** {msg}")
-                    
-                    st.markdown("---")
-                    st.markdown("### 📊 Variables Impact (Thermal Features)")
-                    t_features_list = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
-                    t_importances = model_thermal.feature_importances_
-                    df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
-                    fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
-                    fig_t_imp.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
-                    st.plotly_chart(fig_t_imp, use_container_width=True)
 
         # --- TAB 3: BATCH ANALYSIS ---
         with tab3:
@@ -268,12 +247,15 @@ else:
         # --- TAB 4: EXECUTIVE REPORT ---
         with tab4:
             st.markdown("### 📑 Overall Transformer Risk Assessment (AHI)")
-            st.info("Combined DGA and SCADA metrics for complete Asset Management Risk Logs.")
             
             col_ex_in, col_ex_out = st.columns([1, 1.5])
             
             with col_ex_in:
                 with st.form("executive_form"):
+                    st.markdown("**🔍 Asset Identification:**")
+                    asset_selection = st.selectbox("Select Transformer:", ["TR-501 (Main Substation)", "TR-502 (Auxiliary TX)", "TR-503 (Step-up TX)"])
+                    st.markdown("---")
+                    
                     st.markdown("**1. Key Fault Gases (ppm):**")
                     c_g1, c_g2 = st.columns(2)
                     e_h2 = c_g1.number_input("Hydrogen (H2)", value=5.0)
@@ -298,10 +280,12 @@ else:
                     e_hour = c_o2.number_input("Hour (0-23)", value=5)
                     e_month = st.number_input("Month (1-12)", value=1)
                     
-                    gen_report = st.form_submit_button("📊 Generate Executive Report & Update Log", use_container_width=True)
+                    gen_report = st.form_submit_button("📊 Generate Report & Update FMEA Log", use_container_width=True)
                     
             with col_ex_out:
                 if gen_report:
+                    asset_id = asset_selection.split(' ')[0] # بياخد الكود زي TR-501 بس
+                    
                     dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, e_co, e_co2, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
                                             columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
                     health_score = model_health.predict(dga_input)[0]
@@ -315,31 +299,31 @@ else:
                     
                     if overall_risk <= 35: 
                         final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
-                        final_action = "Continue normal operation. Next routine check in 6 months."
+                        final_action = "Continue normal operation. Next DGA in 6 months."
                         rpn_level = "Low (16-48)"
                     elif overall_risk <= 70: 
                         final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
-                        final_action = "Schedule maintenance. Monitor cooling systems and update Risk Logs."
+                        final_action = "Schedule PM. Reduce load and check cooling."
                         rpn_level = "Medium (72-126)"
                     else: 
                         final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
-                        final_action = "URGENT: Isolate transformer. High probability of insulation failure. Initiate FMEA procedure."
+                        final_action = "URGENT: Isolate transformer. Initiate emergency FMEA."
                         rpn_level = "Critical (160-200)"
                     
-                    # تسجيل القرار في جدول الـ FMEA التلقائي
-                    new_log = pd.DataFrame([{
+                    # حفظ التقرير في سجل الـ FMEA (نحتفظ بآخر 100 سجل فقط لضمان سرعة الداش بورد)
+                    new_entry = pd.DataFrame([{
                         'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        'Asset ID': 'TR-501', 
+                        'Asset ID': asset_id, 
                         'DGA Index': round(health_score, 1),
                         'Pred Temp': round(ot_temp, 1),
                         'Overall Risk (%)': round(overall_risk, 1),
-                        'Status': final_status.split(' ')[0],
+                        'Status': final_status.split(' ')[1],
                         'RPN Level': rpn_level,
                         'Action Required': final_action
                     }])
-                    st.session_state['fmea_log'] = pd.concat([st.session_state['fmea_log'], new_log], ignore_index=True)
+                    st.session_state['fmea_log'] = pd.concat([st.session_state['fmea_log'], new_entry], ignore_index=True).tail(100)
                     
-                    st.markdown("### 📋 Executive Summary")
+                    st.markdown(f"### 📋 Executive Summary: {asset_selection}")
                     st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
                     st.markdown("---")
                     rc1, rc2, rc3, rc4 = st.columns(4)
@@ -350,11 +334,11 @@ else:
                     conf_h = get_model_confidence(model_health, dga_input)
                     conf_t = get_model_confidence(model_thermal, scada_input)
                     overall_conf = (conf_h + conf_t) / 2
-                    rc4.metric("AI Confidence", f"{overall_conf:.1f} %", help="Combined confidence level derived from both Chemical (DGA) and Thermal (SCADA) models.")
+                    rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
                     
                     fig_risk = go.Figure(go.Indicator(
                         mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
-                        gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100]},
+                        gauge = {'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100]},
                                  'bar': {'color': final_color},
                                  'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
                                            {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -363,28 +347,31 @@ else:
                     fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                     st.plotly_chart(fig_risk, use_container_width=True)
                     
-                    st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                     st.warning(f"**Asset Manager Action:** {final_action}")
 
         # --- TAB 5: DYNAMIC FMEA LOG ---
         with tab5:
             st.markdown("### 📋 Dynamic Risk Logs & FMEA Tracker")
-            st.info("This log is automatically updated every time an Executive Report is generated. It translates predictive insights into actionable maintenance tasks.")
+            st.info("This log acts as an automated CMMS feed. It tracks the latest 100 risk evaluations across the transformer fleet.")
             
             if not st.session_state['fmea_log'].empty:
-                st.dataframe(st.session_state['fmea_log'], use_container_width=True)
+                # تلوين الجدول بناءً على مستوى الخطر
+                def color_risk(val):
+                    color = '#00cc66' if val == 'EXCELLENT' else '#ffcc00' if val == 'WATCH' else '#ff3333'
+                    return f'color: {color}; font-weight: bold'
                 
-                # Option to download the log
+                styled_df = st.session_state['fmea_log'].style.applymap(color_risk, subset=['Status'])
+                st.dataframe(styled_df, use_container_width=True)
+                
                 csv = st.session_state['fmea_log'].to_csv(index=False).encode('utf-8')
                 st.download_button(
-                    label="📥 Download FMEA Log as CSV",
+                    label="📥 Download Fleet FMEA Log (CSV)",
                     data=csv,
-                    file_name='fmea_risk_logs.csv',
+                    file_name='Dynamic_FMEA_Risk_Logs.csv',
                     mime='text/csv',
                 )
             else:
-                st.warning("No logs available yet. Please generate a report in the 'Executive Report' tab to create an entry.")
+                st.warning("No records yet. Please generate a report in the 'Executive Report' tab to create an automatic FMEA entry.")
 
-    # لاحظ المسافة هنا (4 مسافات) عشان تكون تابعة لـ if model_health is not None
-    else:
-        st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
+else:
+    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded.")
