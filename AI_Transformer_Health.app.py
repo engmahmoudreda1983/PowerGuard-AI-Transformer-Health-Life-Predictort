@@ -97,22 +97,22 @@ else:
                 st.markdown("### 📊 DGA Parameters")
                 with st.form("input_form"):
                     st.markdown("**1. Dissolved Gases (ppm):**")
-                    h2 = st.number_input("Hydrogen (H2)", value=5.0)
-                    o2 = st.number_input("Oxygen (O2)", value=500.0)
-                    n2 = st.number_input("Nitrogen (N2)", value=10000.0)
-                    ch4 = st.number_input("Methane (CH4)", value=2.0)
-                    co = st.number_input("Carbon Monoxide (CO)", value=100.0)
-                    co2 = st.number_input("Carbon Dioxide (CO2)", value=300.0)
-                    c2h4 = st.number_input("Ethylene (C2H4)", value=1.0)
-                    c2h6 = st.number_input("Ethane (C2H6)", value=5.0)
-                    c2h2 = st.number_input("Acetylene (C2H2)", value=0.0)
+                    h2 = st.number_input("Hydrogen (H2)", value=5.0, help="High levels indicate partial discharge or low energy faults.")
+                    o2 = st.number_input("Oxygen (O2)", value=500.0, help="Indicates leak in sealing or excessive paper aging.")
+                    n2 = st.number_input("Nitrogen (N2)", value=10000.0, help="Inert gas, usually part of atmospheric air or nitrogen blanket.")
+                    ch4 = st.number_input("Methane (CH4)", value=2.0, help="Indicates low temperature thermal faults (< 300°C).")
+                    co = st.number_input("Carbon Monoxide (CO)", value=100.0, help="Primary indicator of severe paper insulation degradation.")
+                    co2 = st.number_input("Carbon Dioxide (CO2)", value=300.0, help="Indicates normal paper aging, but high ratio to CO implies localized overheating.")
+                    c2h4 = st.number_input("Ethylene (C2H4)", value=1.0, help="Indicates high temperature thermal faults (> 700°C).")
+                    c2h6 = st.number_input("Ethane (C2H6)", value=5.0, help="Indicates moderate temperature thermal faults (300°C - 700°C).")
+                    c2h2 = st.number_input("Acetylene (C2H2)", value=0.0, help="CRITICAL: Indicates arcing (high energy discharge) and extreme localized heating.")
                     
                     st.markdown("**2. Physical Properties:**")
-                    dbds = st.number_input("DBDS (ppm)", value=0.1)
-                    pf = st.number_input("Power Factor (%)", value=0.05)
-                    ift = st.number_input("Interfacial Tension (mN/m)", value=45.0)
-                    dr = st.number_input("Dielectric Rigidity (kV)", value=70.0)
-                    wc = st.number_input("Water Content (ppm)", value=2.0)
+                    dbds = st.number_input("DBDS (ppm)", value=0.1, help="Corrosive sulfur compound, harmful to copper winding.")
+                    pf = st.number_input("Power Factor (%)", value=0.05, help="Measure of dielectric loss in the oil. High value means contamination.")
+                    ift = st.number_input("Interfacial Tension (mN/m)", value=45.0, help="Indicates presence of polar contaminants or sludge. Low value is bad.")
+                    dr = st.number_input("Dielectric Rigidity (kV)", value=70.0, help="Breakdown voltage. The ability of oil to withstand electrical stress.")
+                    wc = st.number_input("Water Content (ppm)", value=2.0, help="Moisture in oil reduces dielectric strength and accelerates paper aging.")
                     
                     submitted = st.form_submit_button("🔍 Analyze Oil Health", use_container_width=True)
 
@@ -135,7 +135,7 @@ else:
                     m3.metric("Life Expectancy", f"{l_yrs:.1f} Yrs")
                     
                     conf_h = get_model_confidence(model_health, input_df)
-                    m4.metric("AI Confidence", f"{conf_h:.1f} %")
+                    m4.metric("AI Confidence", f"{conf_h:.1f} %", help="Calculated based on the variance of predictions across 100 Decision Trees.")
 
                     col_g, col_d = st.columns([1, 1.2])
                     with col_g:
@@ -156,6 +156,7 @@ else:
                         fig_tri.update_traces(marker=dict(size=14, color='red', symbol='cross', line=dict(width=2, color='white')))
                         fig_tri.update_layout(title="Duval Triangle Diagnostic", height=320, paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                         st.plotly_chart(fig_tri, use_container_width=True)
+                        st.info(f"**Diagnosis:** {diagnosis}")
                     
                     # --- إضافة الـ Bar Chart بتاع الغازات ---
                     st.markdown("---")
@@ -177,20 +178,20 @@ else:
                 with st.form("thermal_form"):
                     st.markdown("**1. Time Features:**")
                     c1, c2 = st.columns(2)
-                    hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14)
-                    month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7)
+                    hour = c1.number_input("Hour (0-23)", min_value=0, max_value=23, value=14, help="Hour of the day. Affects ambient temperature.")
+                    month = c2.number_input("Month (1-12)", min_value=1, max_value=12, value=7, help="Month of the year. Affects seasonal base temperature.")
                     
                     st.markdown("**2. High Voltage Load:**")
-                    hufl = st.number_input("HUFL (Active Load kW)", value=12.5)
-                    hull = st.number_input("HULL (Reactive Load kVAR)", value=3.2)
+                    hufl = st.number_input("HUFL (Active Load kW)", value=12.5, help="High Use Full Load: Active power demand on the high voltage side.")
+                    hull = st.number_input("HULL (Reactive Load kVAR)", value=3.2, help="High Use Low Load: Reactive power demand on the high voltage side.")
                     
                     st.markdown("**3. Medium Voltage Load:**")
-                    mufl = st.number_input("MUFL (Active Load kW)", value=8.1)
-                    mull = st.number_input("MULL (Reactive Load kVAR)", value=1.5)
+                    mufl = st.number_input("MUFL (Active Load kW)", value=8.1, help="Medium Use Full Load: Active power on the medium voltage side.")
+                    mull = st.number_input("MULL (Reactive Load kVAR)", value=1.5, help="Medium Use Low Load: Reactive power on the medium voltage side.")
                     
                     st.markdown("**4. Low Voltage Load:**")
-                    lufl = st.number_input("LUFL (Active Load kW)", value=4.5)
-                    lull = st.number_input("LULL (Reactive Load kVAR)", value=0.8)
+                    lufl = st.number_input("LUFL (Active Load kW)", value=4.5, help="Low Use Full Load: Active power on the low voltage side.")
+                    lull = st.number_input("LULL (Reactive Load kVAR)", value=0.8, help="Low Use Low Load: Reactive power on the low voltage side.")
                     
                     sub_thermal = st.form_submit_button("🌡️ Predict Oil Temp", use_container_width=True)
                     
@@ -211,7 +212,7 @@ else:
                     tm2.metric("Thermal Status", t_status)
                     
                     conf_t = get_model_confidence(model_thermal, t_input)
-                    tm3.metric("AI Confidence", f"{conf_t:.1f} %")
+                    tm3.metric("AI Confidence", f"{conf_t:.1f} %", help="Calculated using prediction variance in real-time SCADA conditions.")
                     
                     fig_t = go.Figure(go.Indicator(
                         mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
@@ -225,6 +226,7 @@ else:
                     st.plotly_chart(fig_t, use_container_width=True)
                     
                     st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
+                    st.info(f"💡 **AI Recommendation:** {msg}")
                     
                     # --- إضافة الـ Bar Chart بتاع الحرارة ---
                     st.markdown("---")
@@ -329,7 +331,7 @@ else:
                     conf_h = get_model_confidence(model_health, dga_input)
                     conf_t = get_model_confidence(model_thermal, scada_input)
                     overall_conf = (conf_h + conf_t) / 2
-                    rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
+                    rc4.metric("AI Confidence", f"{overall_conf:.1f} %", help="Combined confidence level derived from both Chemical (DGA) and Thermal (SCADA) models.")
                     
                     fig_risk = go.Figure(go.Indicator(
                         mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
@@ -344,5 +346,5 @@ else:
                     
                     st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                     st.warning(f"**Asset Manager Action:** {final_action}")
-    else:
-        st.error("⚠️ Model files not detected!")
+else:
+    st.error("⚠️ Model files not detected!")
