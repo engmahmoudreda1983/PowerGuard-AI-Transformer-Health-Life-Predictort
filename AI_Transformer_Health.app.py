@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import joblib
+from datetime import datetime
 
 # Page Configuration
 st.set_page_config(page_title="PowerGuard AI", page_icon="⚡", layout="wide")
@@ -13,6 +14,10 @@ st.set_page_config(page_title="PowerGuard AI", page_icon="⚡", layout="wide")
 # ==========================================
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
+
+# تهيئة قاعدة بيانات سجل الـ FMEA في ذاكرة الجلسة
+if 'fmea_log' not in st.session_state:
+    st.session_state['fmea_log'] = pd.DataFrame(columns=['Timestamp', 'Asset ID', 'DGA Index', 'Pred Temp', 'Overall Risk (%)', 'Status', 'RPN Level', 'Action Required'])
 
 if not st.session_state['logged_in']:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -88,7 +93,7 @@ else:
         return "DT (Mixed Faults)"
 
     if model_health is not None and model_thermal is not None:
-        tab1, tab2, tab3, tab4 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA", "📁 Batch Analysis", "📑 Executive Report"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA", "📁 Batch Analysis", "📑 Executive Report", "📋 Dynamic FMEA Log"])
 
         # --- TAB 1: DGA & OIL QUALITY ---
         with tab1:
@@ -141,7 +146,7 @@ else:
                     with col_g:
                         fig_g = go.Figure(go.Indicator(
                             mode="gauge+number", value=h_score,
-                            gauge={'axis': {'range': [0, 60], 'tickwidth': 1},
+                            gauge={'axis': {'range': [0, 60], 'tickwidth': 1, 'tickmode': 'array', 'tickvals': [0, 30, 45, 60]},
                                    'bar': {'color': "white", 'thickness': 0.15},
                                    'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                              {'range': [30, 45], 'color': "#ffcc00"},
@@ -215,7 +220,7 @@ else:
                     
                     fig_t = go.Figure(go.Indicator(
                         mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
-                        gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'tickcolor': "white"},
+                        gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120]},
                                  'bar': {'color': t_color},
                                  'steps': [{'range': [20, 60], 'color': "rgba(0, 204, 102, 0.4)"},
                                            {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -293,7 +298,7 @@ else:
                     e_hour = c_o2.number_input("Hour (0-23)", value=5)
                     e_month = st.number_input("Month (1-12)", value=1)
                     
-                    gen_report = st.form_submit_button("📊 Generate Executive Report", use_container_width=True)
+                    gen_report = st.form_submit_button("📊 Generate Executive Report & Update Log", use_container_width=True)
                     
             with col_ex_out:
                 if gen_report:
@@ -311,12 +316,28 @@ else:
                     if overall_risk <= 35: 
                         final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
                         final_action = "Continue normal operation. Next routine check in 6 months."
+                        rpn_level = "Low (16-48)"
                     elif overall_risk <= 70: 
                         final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
                         final_action = "Schedule maintenance. Monitor cooling systems and update Risk Logs."
+                        rpn_level = "Medium (72-126)"
                     else: 
                         final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
                         final_action = "URGENT: Isolate transformer. High probability of insulation failure. Initiate FMEA procedure."
+                        rpn_level = "Critical (160-200)"
+                    
+                    # تسجيل القرار في جدول الـ FMEA التلقائي
+                    new_log = pd.DataFrame([{
+                        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        'Asset ID': 'TR-501', 
+                        'DGA Index': round(health_score, 1),
+                        'Pred Temp': round(ot_temp, 1),
+                        'Overall Risk (%)': round(overall_risk, 1),
+                        'Status': final_status.split(' ')[0],
+                        'RPN Level': rpn_level,
+                        'Action Required': final_action
+                    }])
+                    st.session_state['fmea_log'] = pd.concat([st.session_state['fmea_log'], new_log], ignore_index=True)
                     
                     st.markdown("### 📋 Executive Summary")
                     st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
@@ -333,7 +354,7 @@ else:
                     
                     fig_risk = go.Figure(go.Indicator(
                         mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
-                        gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+                        gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100]},
                                  'bar': {'color': final_color},
                                  'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
                                            {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -344,5 +365,25 @@ else:
                     
                     st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                     st.warning(f"**Asset Manager Action:** {final_action}")
-    else:
-        st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
+
+        # --- TAB 5: DYNAMIC FMEA LOG ---
+        with tab5:
+            st.markdown("### 📋 Dynamic Risk Logs & FMEA Tracker")
+            st.info("This log is automatically updated every time an Executive Report is generated. It translates predictive insights into actionable maintenance tasks.")
+            
+            if not st.session_state['fmea_log'].empty:
+                st.dataframe(st.session_state['fmea_log'], use_container_width=True)
+                
+                # Option to download the log
+                csv = st.session_state['fmea_log'].to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download FMEA Log as CSV",
+                    data=csv,
+                    file_name='fmea_risk_logs.csv',
+                    mime='text/csv',
+                )
+            else:
+                st.warning("No logs available yet. Please generate a report in the 'Executive Report' tab to create an entry.")
+
+else:
+    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
