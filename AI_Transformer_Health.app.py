@@ -158,7 +158,6 @@ else:
                         st.plotly_chart(fig_tri, use_container_width=True)
                         st.info(f"**Diagnosis:** {diagnosis}")
                     
-                    # --- إضافة الـ Bar Chart بتاع الغازات ---
                     st.markdown("---")
                     st.markdown("### 📊 Variables Impact (Feature Importance)")
                     features_list = ['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content']
@@ -228,7 +227,6 @@ else:
                     st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
                     st.info(f"💡 **AI Recommendation:** {msg}")
                     
-                    # --- إضافة الـ Bar Chart بتاع الحرارة ---
                     st.markdown("---")
                     st.markdown("### 📊 Variables Impact (Thermal Features)")
                     t_features_list = ['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month']
@@ -346,5 +344,5 @@ else:
                     
                     st.markdown(f"<h2 style='text-align: center; color: {final_color}; margin-top:-30px;'>{final_status}</h2>", unsafe_allow_html=True)
                     st.warning(f"**Asset Manager Action:** {final_action}")
-else:
-    st.error("⚠️ Model files not detected!")
+    else:
+        st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
