@@ -385,5 +385,6 @@ else:
             else:
                 st.warning("No logs available yet. Please generate a report in the 'Executive Report' tab to create an entry.")
 
-else:
-    st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
+    # لاحظ المسافة هنا (4 مسافات) عشان تكون تابعة لـ if model_health is not None
+    else:
+        st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
