@@ -38,23 +38,19 @@ if not st.session_state['logged_in']:
                 else:
                     st.error("❌ Invalid Username or Password")
     
-    # السطر ده بيوقف الكود هنا لو اليوزر لسه مسجلش دخول (بديل للـ else المعقدة)
-    st.stop()
+    st.stop() # إيقاف الكود هنا لو لم يتم تسجيل الدخول
 
 
 # ==========================================
 # --- 2. لوحة التحكم الرئيسية (Dashboard) ---
 # ==========================================
-# (كل الكود اللي تحت ده مش هيشتغل غير لو مسجل دخول)
 
-# زرار تسجيل الخروج
 col_l, col_r = st.columns([10, 1])
 with col_r:
     if st.button("Logout 🚪"):
         st.session_state['logged_in'] = False
         st.rerun()
 
-# Header Design
 st.markdown("""
 <div style='background-color: #0b2e59; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
     <h1 style='color: #ffffff; text-align: center; margin: 0;'>AI Predictive Maintenance ⚡</h1>
@@ -62,7 +58,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Load Models
 @st.cache_resource
 def load_models():
     try:
@@ -75,7 +70,6 @@ def load_models():
 
 model_health, model_life, model_thermal = load_models()
 
-# لو الموديلات مش موجودة، وقف الكود وطلع رسالة خطأ (بديل للـ else الأخيرة اللي كانت عاملة مشكلة)
 if model_health is None or model_thermal is None:
     st.error("⚠️ Model files not detected! Please ensure 'rf_health_model.pkl', 'rf_life_model.pkl', and 'rf_thermal_model.pkl' are uploaded to GitHub.")
     st.stop()
@@ -152,9 +146,11 @@ with tab1:
 
             col_g, col_d = st.columns([1, 1.2])
             with col_g:
+                # --- إضافة الأرقام على العداد الأول ---
                 fig_g = go.Figure(go.Indicator(
                     mode="gauge+number", value=h_score,
-                    gauge={'axis': {'range': [0, 60], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 30, 45, 60]},
+                    gauge={'axis': {'range': [0, 60], 'tickwidth': 2, 'tickcolor': "white", 
+                                    'tickmode': 'array', 'tickvals': [0, 30, 45, 60], 'ticktext': ['0', '30', '45', '60']},
                            'bar': {'color': "white", 'thickness': 0.15},
                            'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                      {'range': [30, 45], 'color': "#ffcc00"},
@@ -223,9 +219,11 @@ with tab2:
             conf_t = get_model_confidence(model_thermal, t_input)
             tm3.metric("AI Confidence", f"{conf_t:.1f} %", help="Calculated using prediction variance in real-time SCADA conditions.")
             
+            # --- إضافة الأرقام على العداد الثاني ---
             fig_t = go.Figure(go.Indicator(
                 mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
-                gauge = {'axis': {'range': [20, 120], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120]},
+                gauge = {'axis': {'range': [20, 120], 'tickwidth': 2, 'tickcolor': "white", 
+                                  'tickmode': 'array', 'tickvals': [20, 60, 80, 120], 'ticktext': ['20', '60', '80', '120']},
                          'bar': {'color': t_color},
                          'steps': [{'range': [20, 60], 'color': "rgba(0, 204, 102, 0.4)"},
                                    {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -279,7 +277,9 @@ with tab4:
     with col_ex_in:
         with st.form("executive_form"):
             st.markdown("**🔍 Asset Identification:**")
-            asset_selection = st.selectbox("Select Transformer:", ["TR-501 (Main Substation)", "TR-502 (Auxiliary TX)", "TR-503 (Step-up TX)"])
+            # --- تعديل أرقام المحولات من T01 إلى T10 ---
+            tx_list = [f"T{i:02d} (Substation Unit)" for i in range(1, 11)]
+            asset_selection = st.selectbox("Select Transformer:", tx_list)
             st.markdown("---")
             
             st.markdown("**1. Key Fault Gases (ppm):**")
@@ -310,7 +310,7 @@ with tab4:
             
     with col_ex_out:
         if gen_report:
-            asset_id = asset_selection.split(' ')[0] 
+            asset_id = asset_selection.split(' ')[0] # بياخد الكود زي T01 بس
             
             dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, e_co, e_co2, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
                                     columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
@@ -361,9 +361,11 @@ with tab4:
             overall_conf = (conf_h + conf_t) / 2
             rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
             
+            # --- إضافة الأرقام على العداد الثالث ---
             fig_risk = go.Figure(go.Indicator(
                 mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
-                gauge = {'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "white", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100]},
+                gauge = {'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "white", 
+                                  'tickmode': 'array', 'tickvals': [0, 35, 70, 100], 'ticktext': ['0', '35', '70', '100']},
                          'bar': {'color': final_color},
                          'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
                                    {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
@@ -380,12 +382,10 @@ with tab5:
     st.info("This log acts as an automated CMMS feed. It tracks the latest risk evaluations across the transformer fleet.")
     
     if not st.session_state['fmea_log'].empty:
-        # تلوين الجدول بناءً على مستوى الخطر
         def color_risk(val):
             color = '#00cc66' if val == 'EXCELLENT' else '#ffcc00' if val == 'WATCH' else '#ff3333'
             return f'color: {color}; font-weight: bold'
         
-        # استبدلت applymap بـ map لتفادي أي تحذيرات من مكتبة البانداز
         try:
             styled_df = st.session_state['fmea_log'].style.map(color_risk, subset=['Status'])
         except:
