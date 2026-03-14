@@ -96,6 +96,9 @@ def get_duval_diagnosis(ch4, c2h4, c2h2):
     if p_c2h2 > 13 or (p_c2h2 > 4 and p_c2h4 >= 50): return "D2 (High Energy Discharge)"
     return "DT (Mixed Faults)"
 
+# --- ستايل الأرقام الجديد (أسود عريض وبدون مربع) ---
+lbl_style = dict(showarrow=False, font=dict(color="black", size=18, family="Arial Black"))
+
 tab1, tab2, tab3, tab4 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA", "📁 Batch Analysis", "📑 Executive Report & Logs"])
 
 # --- TAB 1: DGA & OIL QUALITY ---
@@ -147,43 +150,58 @@ with tab1:
 
             col_g, col_d = st.columns([1, 1.2])
             with col_g:
-                # --- الأرقام الأصلية فوق المؤشر وباللون الأسود العريض ---
                 fig_g = go.Figure(go.Indicator(
                     mode="gauge+number", value=h_score,
-                    gauge={'axis': {'range': [0, 60], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [0, 30, 45, 60], 'ticktext': ['0', '30', '45', '60'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
-                           'bar': {'color': "black", 'thickness': 0.15},
+                    gauge={'axis': {'range': [0, 60], 'tickwidth': 1, 'showticklabels': False},
+                           'bar': {'color': "white", 'thickness': 0.15},
                            'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                      {'range': [30, 45], 'color': "#ffcc00"},
                                      {'range': [45, 60], 'color': "#ff3333"}]}))
-                fig_g.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)")
+                
+                # وضع الأرقام فوق قوس العداد باللون الأسود
+                fig_g.add_annotation(x=0.10, y=0.35, text="0", **lbl_style)
+                fig_g.add_annotation(x=0.35, y=0.90, text="30", **lbl_style)
+                fig_g.add_annotation(x=0.65, y=0.90, text="45", **lbl_style)
+                fig_g.add_annotation(x=0.90, y=0.35, text="60", **lbl_style)
+
+                fig_g.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_g, use_container_width=True)
                 st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top:-30px;'>{status}</h2>", unsafe_allow_html=True)
 
             with col_d:
-                # --- حل مشكلة مثلث دوفال ليتحرك بمرونة ---
+                # --- حل مشكلة مثلث دوفال (إضافة نقاط مخفية لتثبيت أبعاد المثلث) ---
                 tot_gas = ch4 + c2h4 + c2h2
                 if tot_gas > 0:
                     p_ch4, p_c2h4, p_c2h2 = (ch4/tot_gas)*100, (c2h4/tot_gas)*100, (c2h2/tot_gas)*100
                 else:
                     p_ch4, p_c2h4, p_c2h2 = 33.33, 33.33, 33.33 
                 
-                # استخدام go.Scatterternary بدل px لمنع الـ Auto-Zoom
-                fig_tri = go.Figure(go.Scatterternary(
-                    a=[p_ch4], b=[p_c2h4], c=[p_c2h2],
-                    mode='markers',
-                    marker=dict(size=14, color='red', symbol='cross', line=dict(width=2, color='white'))
+                fig_tri = go.Figure()
+                
+                # 1. إضافة 3 نقاط مخفية في أقصى الزوايا لإجبار الـ Plotly على عدم عمل Zoom
+                fig_tri.add_trace(go.Scatterternary(
+                    a=[100, 0, 0], b=[0, 100, 0], c=[0, 0, 100],
+                    mode='markers', marker=dict(color='rgba(0,0,0,0)', size=1), hoverinfo='skip'
                 ))
                 
-                # إجبار المثلث على إظهار النطاق من 0 لـ 100
+                # 2. إضافة النقطة الحقيقية التي تعبر عن حالة المحول
+                fig_tri.add_trace(go.Scatterternary(
+                    a=[p_ch4], b=[p_c2h4], c=[p_c2h2],
+                    mode='markers',
+                    marker=dict(size=14, color='red', symbol='cross', line=dict(width=2, color='white')),
+                    name='Diagnosis'
+                ))
+                
                 fig_tri.update_layout(
                     title="Duval Triangle Diagnostic", 
-                    height=320, margin=dict(b=0), paper_bgcolor="rgba(0,0,0,0)",
+                    height=320, margin=dict(b=0), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"},
                     ternary=dict(
                         sum=100,
                         aaxis=dict(title="CH4 %", min=0),
                         baxis=dict(title="C2H4 %", min=0),
                         caxis=dict(title="C2H2 %", min=0)
-                    )
+                    ),
+                    showlegend=False
                 )
                 st.plotly_chart(fig_tri, use_container_width=True)
                 st.info(f"**Duval Fault Diagnosis:** {diagnosis}")
@@ -194,7 +212,7 @@ with tab1:
             importances = model_health.feature_importances_
             df_imp = pd.DataFrame({'Feature': features_list, 'Importance': importances}).sort_values(by='Importance', ascending=True)
             fig_imp = px.bar(df_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Blues')
-            fig_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", coloraxis_showscale=False)
+            fig_imp.update_layout(height=350, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
             st.plotly_chart(fig_imp, use_container_width=True)
 
 # --- TAB 2: SCADA & THERMAL ---
@@ -240,17 +258,23 @@ with tab2:
             conf_t = get_model_confidence(model_thermal, t_input)
             tm3.metric("AI Confidence", f"{conf_t:.1f} %")
             
-            # --- الأرقام الأصلية فوق المؤشر وباللون الأسود العريض ---
+            # إزالة عنوان Oil Temp من العداد
             fig_t = go.Figure(go.Indicator(
-                mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
-                gauge = {'axis': {'range': [20, 120], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120], 'ticktext': ['20', '60', '80', '120'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
-                         'bar': {'color': "black", 'thickness': 0.15},
+                mode = "gauge+number", value = pred_ot,
+                gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'showticklabels': False},
+                         'bar': {'color': t_color},
                          'steps': [{'range': [20, 60], 'color': "rgba(0, 204, 102, 0.4)"},
                                    {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
                                    {'range': [80, 120], 'color': "rgba(255, 51, 51, 0.4)"}],
-                         'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
+                         'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
             
-            fig_t.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)")
+            # وضع الأرقام فوق قوس العداد باللون الأسود
+            fig_t.add_annotation(x=0.10, y=0.35, text="20", **lbl_style)
+            fig_t.add_annotation(x=0.45, y=0.95, text="60", **lbl_style)
+            fig_t.add_annotation(x=0.65, y=0.95, text="80", **lbl_style)
+            fig_t.add_annotation(x=0.90, y=0.35, text="120", **lbl_style)
+
+            fig_t.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
             st.plotly_chart(fig_t, use_container_width=True)
             
             st.markdown(f"<h2 style='text-align: center; color: {t_color}; margin-top:-30px;'>{t_status}</h2>", unsafe_allow_html=True)
@@ -262,7 +286,7 @@ with tab2:
             t_importances = model_thermal.feature_importances_
             df_t_imp = pd.DataFrame({'Feature': t_features_list, 'Importance': t_importances}).sort_values(by='Importance', ascending=True)
             fig_t_imp = px.bar(df_t_imp, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='Reds')
-            fig_t_imp.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", coloraxis_showscale=False)
+            fig_t_imp.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, coloraxis_showscale=False)
             st.plotly_chart(fig_t_imp, use_container_width=True)
 
 # --- TAB 3: BATCH ANALYSIS ---
@@ -381,17 +405,23 @@ with tab4:
             overall_conf = (conf_h + conf_t) / 2
             rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
             
-            # --- الأرقام الأصلية فوق المؤشر وباللون الأسود العريض ---
+            # إزالة عنوان Risk Level من العداد
             fig_risk = go.Figure(go.Indicator(
-                mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
-                gauge = {'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100], 'ticktext': ['0', '35', '70', '100'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
-                         'bar': {'color': "black"},
+                mode = "gauge+number", value = overall_risk,
+                gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'showticklabels': False},
+                         'bar': {'color': final_color},
                          'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
                                    {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
                                    {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
-                         'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
+                         'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
             
-            fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)")
+            # وضع الأرقام فوق قوس العداد باللون الأسود
+            fig_risk.add_annotation(x=0.10, y=0.35, text="0", **lbl_style)
+            fig_risk.add_annotation(x=0.35, y=0.90, text="35", **lbl_style)
+            fig_risk.add_annotation(x=0.65, y=0.90, text="70", **lbl_style)
+            fig_risk.add_annotation(x=0.90, y=0.35, text="100", **lbl_style)
+
+            fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
             st.plotly_chart(fig_risk, use_container_width=True)
             
             st.warning(f"**Asset Manager Action:** {final_action}")
