@@ -147,7 +147,6 @@ with tab1:
 
             col_g, col_d = st.columns([1, 1.2])
             with col_g:
-                # العداد مع توسيع مساحة الهامش الأيمن r=45 لتفادي قص الرقم
                 fig_g = go.Figure(go.Indicator(
                     mode="gauge+number", value=h_score,
                     gauge={'axis': {'range': [0, 60], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [0, 30, 45, 60], 'ticktext': ['0', '30', '45', '60'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
@@ -155,6 +154,7 @@ with tab1:
                            'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                      {'range': [30, 45], 'color': "#ffcc00"},
                                      {'range': [45, 60], 'color': "#ff3333"}]}))
+                # تم توسيع الهامش r=45 لتجنب قص الرقم 60
                 fig_g.update_layout(height=280, margin=dict(l=20, r=45, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(fig_g, use_container_width=True)
                 st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top:-30px;'>{status}</h2>", unsafe_allow_html=True)
@@ -244,7 +244,7 @@ with tab2:
             conf_t = get_model_confidence(model_thermal, t_input)
             tm3.metric("AI Confidence", f"{conf_t:.1f} %")
             
-            # إزالة عنوان Oil Temp وتوسيع الهامش r=45
+            # تم إزالة العنوان title من هنا تماماً لتجنب ظهور Oil Temp فوق العداد
             fig_t = go.Figure(go.Indicator(
                 mode = "gauge+number", value = pred_ot,
                 gauge = {'axis': {'range': [20, 120], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [20, 60, 80, 120], 'ticktext': ['20', '60', '80', '120'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
@@ -339,4 +339,103 @@ with tab4:
             dga_input = pd.DataFrame([[e_h2, 500, 10000, e_ch4, e_co, e_co2, e_c2h4, 5, e_c2h2, 0.1, e_pf, 45, e_dr, e_wc]], 
                                     columns=['Hydrogen', 'Oxigen', 'Nitrogen', 'Methane', 'CO', 'CO2', 'Ethylene', 'Ethane', 'Acethylene', 'DBDS', 'Power factor', 'Interfacial V', 'Dielectric rigidity', 'Water content'])
             health_score = model_health.predict(dga_input)[0]
-            dga_risk = min(
+            dga_risk = min(100, max(0, ((health_score - 20) / 30) * 100)) 
+            
+            scada_input = pd.DataFrame([[e_hufl, e_hufl*0.2, e_hufl*0.6, e_hufl*0.1, e_hufl*0.3, e_hufl*0.05, e_hour, e_month]], 
+                                   columns=['HUFL', 'HULL', 'MUFL', 'MULL', 'LUFL', 'LULL', 'Hour', 'Month'])
+            ot_temp = model_thermal.predict(scada_input)[0]
+            thermal_risk = min(100, max(0, ((ot_temp - 40) / 45) * 100))
+            overall_risk = (dga_risk * 0.6) + (thermal_risk * 0.4)
+            
+            if overall_risk <= 35: 
+                final_status, final_color = "🟢 EXCELLENT (Low Risk)", "#00cc66"
+                final_action = "Continue normal operation. Next DGA in 6 months."
+                rpn_level = "Low (16-48)"
+            elif overall_risk <= 70: 
+                final_status, final_color = "🟡 WATCH (Medium Risk)", "#ffcc00"
+                final_action = "Schedule PM. Reduce load and check cooling."
+                rpn_level = "Medium (72-126)"
+            else: 
+                final_status, final_color = "🔴 ACTION REQUIRED (High Risk)", "#ff3333"
+                final_action = "URGENT: Isolate transformer. Initiate emergency FMEA."
+                rpn_level = "Critical (160-200)"
+            
+            new_entry = pd.DataFrame([{
+                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'Asset ID': asset_id, 
+                'DGA Index': round(health_score, 1),
+                'Pred Temp': round(ot_temp, 1),
+                'Overall Risk (%)': round(overall_risk, 1),
+                'Status': final_status.split(' ')[1],
+                'RPN Level': rpn_level,
+                'Action Required': final_action
+            }])
+            st.session_state['fmea_log'] = pd.concat([st.session_state['fmea_log'], new_entry], ignore_index=True).tail(100)
+            
+            st.markdown(f"### 📋 Executive Summary: {asset_selection}")
+            st.markdown(f"<h2 style='text-align: center; color: {final_color}; border: 2px solid {final_color}; padding: 10px; border-radius: 5px;'>{final_status}</h2>", unsafe_allow_html=True)
+            st.markdown("---")
+            rc1, rc2, rc3, rc4 = st.columns(4)
+            rc1.metric("Degradation Index", f"{health_score:.1f}/60")
+            rc2.metric("Predicted Temp", f"{ot_temp:.1f} °C")
+            rc3.metric("OVERALL RISK", f"{overall_risk:.1f} %")
+            
+            conf_h = get_model_confidence(model_health, dga_input)
+            conf_t = get_model_confidence(model_thermal, scada_input)
+            overall_conf = (conf_h + conf_t) / 2
+            rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
+            
+            fig_risk = go.Figure(go.Indicator(
+                mode = "gauge+number", value = overall_risk,
+                gauge = {'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "black", 'tickmode': 'array', 'tickvals': [0, 35, 70, 100], 'ticktext': ['0', '35', '70', '100'], 'tickfont': {'color': 'black', 'size': 16, 'family': 'Arial Black'}},
+                         'bar': {'color': "black"},
+                         'steps': [{'range': [0, 35], 'color': "rgba(0, 204, 102, 0.4)"},
+                                   {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
+                                   {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
+                         'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
+            
+            fig_risk.update_layout(height=300, margin=dict(l=20, r=45, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_risk, use_container_width=True)
+            
+            st.warning(f"**Asset Manager Action:** {final_action}")
+
+            # --- API Simulation ---
+            with st.spinner("Pushing Data to Central Database & CMMS..."):
+                time.sleep(1.5)
+                
+            if overall_risk > 70:
+                st.error("🚨 **CRITICAL ALARM TRIGGERED:** API Request sent to SCADA to prepare for automated load shedding!")
+                st.error(f"📧 **EMAIL ALERT SENT:** Notification dispatched to Plant Manager for {asset_id}.")
+                st.success("✅ Log successfully saved to Cloud Database.")
+            elif overall_risk > 35:
+                st.warning("⚠️ **PREVENTIVE WORK ORDER CREATED:** API Request sent to SAP CMMS to schedule inspection.")
+                st.success("✅ Log successfully saved to Cloud Database.")
+            else:
+                st.success("✅ Data synchronized with Cloud Database. No immediate action required.")
+
+    # --- FMEA Log ---
+    st.markdown("---")
+    st.markdown("### 📋 Dynamic Risk Logs & FMEA Tracker")
+    st.info("This log is automatically updated with every evaluation. It acts as a feed for the CMMS system.")
+    
+    if not st.session_state['fmea_log'].empty:
+        def color_risk(val):
+            color = '#00cc66' if val == 'EXCELLENT' else '#ffcc00' if val == 'WATCH' else '#ff3333'
+            return f'color: {color}; font-weight: bold'
+        
+        try:
+            styled_df = st.session_state['fmea_log'].style.map(color_risk, subset=['Status'])
+        except:
+            styled_df = st.session_state['fmea_log'].style.applymap(color_risk, subset=['Status'])
+            
+        st.dataframe(styled_df, use_container_width=True)
+        
+        csv = st.session_state['fmea_log'].to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Fleet FMEA Log (CSV)",
+            data=csv,
+            file_name='Dynamic_FMEA_Risk_Logs.csv',
+            mime='text/csv',
+        )
+    else:
+        st.warning("No records yet. Please generate a report to create an automatic FMEA entry.")
