@@ -55,7 +55,7 @@ with col_r:
 st.markdown("""
 <div style='background-color: #0b2e59; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
     <h1 style='color: #ffffff; text-align: center; margin: 0;'>AI Predictive Maintenance ⚡</h1>
-    <h3 style='color: #4da6ff; text-align: center; margin: 5px 0 0 0;'>Power Transformers Fleet Management</h3>
+    <h3 style='color: #4da6ff; text-align: center; margin: 5px 0 0 0;'>Predictive Maintenance for the Modern Grid</h3>
 </div>
 """, unsafe_allow_html=True)
 
