@@ -96,6 +96,9 @@ def get_duval_diagnosis(ch4, c2h4, c2h2):
     if p_c2h2 > 13 or (p_c2h2 > 4 and p_c2h4 >= 50): return "D2 (High Energy Discharge)"
     return "DT (Mixed Faults)"
 
+# --- ستايل الأرقام الجديد (مربع أبيض بخط أسود عريض) ---
+lbl_style = dict(showarrow=False, font=dict(color="black", size=14), bgcolor="white", bordercolor="black", borderwidth=2, borderpad=3)
+
 tab1, tab2, tab3, tab4 = st.tabs(["🧪 DGA & Oil Quality", "🌡️ Real-Time SCADA", "📁 Batch Analysis", "📑 Executive Report & Logs"])
 
 # --- TAB 1: DGA & OIL QUALITY ---
@@ -147,7 +150,6 @@ with tab1:
 
             col_g, col_d = st.columns([1, 1.2])
             with col_g:
-                # --- إضافة الأرقام المطبوعة يدوياً حول العداد ---
                 fig_g = go.Figure(go.Indicator(
                     mode="gauge+number", value=h_score,
                     gauge={'axis': {'range': [0, 60], 'tickwidth': 1, 'showticklabels': False},
@@ -155,12 +157,13 @@ with tab1:
                            'steps': [{'range': [0, 30], 'color': "#00cc66"},
                                      {'range': [30, 45], 'color': "#ffcc00"},
                                      {'range': [45, 60], 'color': "#ff3333"}]}))
-                # وضع الأرقام في أماكن استراتيجية
-                fig_g.add_annotation(x=0.1, y=0.1, text="0", showarrow=False, font=dict(color="white", size=14))
-                fig_g.add_annotation(x=0.5, y=0.85, text="30", showarrow=False, font=dict(color="white", size=14))
-                fig_g.add_annotation(x=0.8, y=0.5, text="45", showarrow=False, font=dict(color="white", size=14))
-                fig_g.add_annotation(x=0.9, y=0.1, text="60", showarrow=False, font=dict(color="white", size=14))
                 
+                # إضافة مربعات الأرقام السوداء بوضوح
+                fig_g.add_annotation(x=0.12, y=0.15, text="<b>0</b>", **lbl_style)
+                fig_g.add_annotation(x=0.50, y=0.85, text="<b>30</b>", **lbl_style)
+                fig_g.add_annotation(x=0.85, y=0.50, text="<b>45</b>", **lbl_style)
+                fig_g.add_annotation(x=0.88, y=0.15, text="<b>60</b>", **lbl_style)
+
                 fig_g.update_layout(height=280, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_g, use_container_width=True)
                 st.markdown(f"<h2 style='text-align: center; color: {color}; margin-top:-30px;'>{status}</h2>", unsafe_allow_html=True)
@@ -171,7 +174,7 @@ with tab1:
                 fig_tri.update_traces(marker=dict(size=14, color='red', symbol='cross', line=dict(width=2, color='white')))
                 fig_tri.update_layout(title="Duval Triangle Diagnostic", height=320, margin=dict(b=0), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
                 st.plotly_chart(fig_tri, use_container_width=True)
-                # --- حل مشكلة مثلث دوفال: عرض التشخيص بوضوح تحته ---
+                # عرض التشخيص تحت دوفال
                 st.info(f"**Duval Fault Diagnosis:** {diagnosis}")
             
             st.markdown("---")
@@ -226,7 +229,6 @@ with tab2:
             conf_t = get_model_confidence(model_thermal, t_input)
             tm3.metric("AI Confidence", f"{conf_t:.1f} %")
             
-            # --- إضافة الأرقام المطبوعة يدوياً للعداد الثاني ---
             fig_t = go.Figure(go.Indicator(
                 mode = "gauge+number", value = pred_ot, title = {'text': "Oil Temp °C"},
                 gauge = {'axis': {'range': [20, 120], 'tickwidth': 1, 'showticklabels': False},
@@ -235,11 +237,12 @@ with tab2:
                                    {'range': [60, 80], 'color': "rgba(255, 204, 0, 0.4)"},
                                    {'range': [80, 120], 'color': "rgba(255, 51, 51, 0.4)"}],
                          'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': pred_ot}}))
-                         
-            fig_t.add_annotation(x=0.1, y=0.1, text="20", showarrow=False, font=dict(color="white", size=14))
-            fig_t.add_annotation(x=0.5, y=0.85, text="60", showarrow=False, font=dict(color="white", size=14))
-            fig_t.add_annotation(x=0.75, y=0.6, text="80", showarrow=False, font=dict(color="white", size=14))
-            fig_t.add_annotation(x=0.9, y=0.1, text="120", showarrow=False, font=dict(color="white", size=14))
+            
+            # إضافة مربعات الأرقام السوداء بوضوح
+            fig_t.add_annotation(x=0.12, y=0.15, text="<b>20</b>", **lbl_style)
+            fig_t.add_annotation(x=0.35, y=0.75, text="<b>60</b>", **lbl_style)
+            fig_t.add_annotation(x=0.65, y=0.75, text="<b>80</b>", **lbl_style)
+            fig_t.add_annotation(x=0.88, y=0.15, text="<b>120</b>", **lbl_style)
 
             fig_t.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
             st.plotly_chart(fig_t, use_container_width=True)
@@ -372,7 +375,6 @@ with tab4:
             overall_conf = (conf_h + conf_t) / 2
             rc4.metric("AI Confidence", f"{overall_conf:.1f} %")
             
-            # --- إضافة الأرقام المطبوعة يدوياً للعداد الثالث ---
             fig_risk = go.Figure(go.Indicator(
                 mode = "gauge+number", value = overall_risk, title = {'text': "Asset Risk Level %"},
                 gauge = {'axis': {'range': [0, 100], 'tickwidth': 1, 'showticklabels': False},
@@ -381,11 +383,12 @@ with tab4:
                                    {'range': [35, 70], 'color': "rgba(255, 204, 0, 0.4)"},
                                    {'range': [70, 100], 'color': "rgba(255, 51, 51, 0.4)"}],
                          'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': overall_risk}}))
-                         
-            fig_risk.add_annotation(x=0.1, y=0.1, text="0", showarrow=False, font=dict(color="white", size=14))
-            fig_risk.add_annotation(x=0.35, y=0.75, text="35", showarrow=False, font=dict(color="white", size=14))
-            fig_risk.add_annotation(x=0.65, y=0.75, text="70", showarrow=False, font=dict(color="white", size=14))
-            fig_risk.add_annotation(x=0.9, y=0.1, text="100", showarrow=False, font=dict(color="white", size=14))
+            
+            # إضافة مربعات الأرقام السوداء بوضوح
+            fig_risk.add_annotation(x=0.12, y=0.15, text="<b>0</b>", **lbl_style)
+            fig_risk.add_annotation(x=0.32, y=0.70, text="<b>35</b>", **lbl_style)
+            fig_risk.add_annotation(x=0.68, y=0.70, text="<b>70</b>", **lbl_style)
+            fig_risk.add_annotation(x=0.88, y=0.15, text="<b>100</b>", **lbl_style)
 
             fig_risk.update_layout(height=300, margin=dict(l=20, r=20, t=30, b=10), paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"})
             st.plotly_chart(fig_risk, use_container_width=True)
